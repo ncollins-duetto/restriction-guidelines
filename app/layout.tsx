@@ -10,7 +10,7 @@ const lato = Lato({
 
 export const metadata: Metadata = {
   title: "Duetto – Restrictions",
-  description: "Group-level Restriction Rules prototype",
+  description: "Group-level Restriction Guidelines prototype",
 };
 
 export default function RootLayout({

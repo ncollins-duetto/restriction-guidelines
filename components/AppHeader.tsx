@@ -1,21 +1,82 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+
 const LOGO_URL =
   "https://www.figma.com/api/mcp/asset/19c3c66e-f32d-48c4-a8d1-127851011ea6";
+
+// ─── Mega-menu structure ────────────────────────────────────────────────────
+// Matches the production Pricing & Strategy mega-menu exactly.
+// Flat columns with no sub-section headers. Only "Restriction Guidelines"
+// in Multi-Property is a live link; everything else is a non-linked placeholder.
+
+type MegaMenuItem = { label: string; href?: string };
+type MegaMenuColumn = { header: string; items: MegaMenuItem[] };
+
+const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
+  {
+    header: "Manage",
+    items: [
+      { label: "Rates" },
+      { label: "Rates (7 Day View)" },
+      { label: "Yielding" },
+      { label: "Room Type Rates" },
+      { label: "Restrictions" },
+      { label: "Product Level Restrictions" },
+      { label: "Overbooking" },
+      { label: "Out Of Order Rooms" },
+      { label: "Events" },
+    ],
+  },
+  {
+    header: "Configure",
+    items: [
+      { label: "Pricing Strategy" },
+      { label: "Restriction Strategy" },
+      { label: "Forecast Rules" },
+      { label: "Autopilot" },
+      { label: "Min/Max Bounds" },
+      { label: "Sub Rates" },
+    ],
+  },
+  {
+    header: "Multi-Property",
+    items: [
+      { label: "Rate Guidelines" },
+      { label: "Restriction Guidelines", href: "/restrictions" },
+      { label: "Enterprise Hotel Groups" },
+      { label: "Sub Rates" },
+    ],
+  },
+  {
+    header: "Review",
+    items: [
+      { label: "Rate Change Activity" },
+      { label: "Restriction Change Activity" },
+      { label: "Pricing Visibility" },
+    ],
+  },
+];
 
 type NavItem = {
   label: string;
   hasDropdown?: boolean;
   active?: boolean;
+  menu?: MegaMenuColumn[];
 };
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Home" },
   { label: "Advance" },
-  { label: "Pricing & Strategy", hasDropdown: true, active: true },
+  { label: "Pricing & Strategy", hasDropdown: true, active: true, menu: PRICING_STRATEGY_MENU },
   { label: "Forecasts & Budgets", hasDropdown: true },
   { label: "Reports", hasDropdown: true },
   { label: "Groups", hasDropdown: true },
   { label: "Onboarding" },
 ];
+
+// ─── Icons ──────────────────────────────────────────────────────────────────
 
 function ChevronDownIcon() {
   return (
@@ -73,17 +134,97 @@ function BuildingIcon() {
   );
 }
 
+// ─── Mega-menu dropdown ──────────────────────────────────────────────────────
+
+function MegaMenu({ columns, onClose }: { columns: MegaMenuColumn[]; onClose: () => void }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "40px",
+        left: 0,
+        right: 0,
+        zIndex: 50,
+        display: "flex",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        backgroundColor: "#ffffff",
+        borderTop: "2px solid #c4ff45",
+        borderBottom: "1px solid #dde1e2",
+        padding: "20px 24px",
+        gap: "40px",
+      }}
+    >
+      {columns.map((col) => (
+        <div key={col.header} style={{ minWidth: "160px" }}>
+          {/* Column header */}
+          <p
+            className="text-[11px] font-bold uppercase tracking-widest mb-3"
+            style={{ color: "#4f5b60" }}
+          >
+            {col.header}
+          </p>
+          {/* Flat item list */}
+          <div className="flex flex-col gap-0.5">
+            {col.items.map((item) =>
+              item.href ? (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={onClose}
+                  className="text-[13px] py-0.5 font-bold"
+                  style={{ color: "#006461" }}
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <span
+                  key={item.label}
+                  className="text-[13px] py-0.5"
+                  style={{ color: "#006461" }}
+                >
+                  {item.label}
+                </span>
+              )
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Props ───────────────────────────────────────────────────────────────────
+
 type AppHeaderProps = {
   breadcrumb?: string[];
   propertyName?: string;
 };
 
 export default function AppHeader({
-  breadcrumb = ["Home", "Pricing & Strategy", "Restriction Rules"],
+  breadcrumb = ["Home", "Pricing & Strategy", "Restriction Guidelines"],
   propertyName = "All Properties",
 }: AppHeaderProps) {
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Close on click outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
+        setOpenMenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function toggleMenu(label: string, hasMenu: boolean) {
+    if (!hasMenu) return;
+    setOpenMenu((prev) => (prev === label ? null : label));
+  }
+
   return (
-    <header className="w-full">
+    <header ref={headerRef} className="w-full relative z-40">
       {/* Top nav bar */}
       <div
         className="flex items-center gap-4 h-10 px-6"
@@ -95,10 +236,11 @@ export default function AppHeader({
         </div>
 
         {/* Nav items */}
-        <nav className="flex flex-1 h-10 overflow-hidden">
+        <nav className="flex flex-1 h-10">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.label}
+              onClick={() => toggleMenu(item.label, !!item.menu)}
               className="flex items-center gap-0.5 h-10 px-4 text-[13px] shrink-0 cursor-pointer transition-colors"
               style={
                 item.active
@@ -135,6 +277,14 @@ export default function AppHeader({
           </button>
         </div>
       </div>
+
+      {/* Mega-menu — rendered at header level so left:0/right:0 spans full width */}
+      {openMenu && NAV_ITEMS.find(i => i.label === openMenu)?.menu && (
+        <MegaMenu
+          columns={NAV_ITEMS.find(i => i.label === openMenu)!.menu!}
+          onClose={() => setOpenMenu(null)}
+        />
+      )}
 
       {/* Breadcrumb + property picker bar */}
       <div

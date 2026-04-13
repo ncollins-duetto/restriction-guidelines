@@ -133,7 +133,7 @@ export default function RestrictionsPage() {
         >
           <div>
             <h1 className="text-[18px] font-bold" style={{ color: "#1a2533" }}>
-              Restriction Rules
+              Restriction Guidelines
             </h1>
             <p className="text-[13px] mt-0.5" style={{ color: "#4f5b60" }}>
               Define group-level restrictions applied across all properties.

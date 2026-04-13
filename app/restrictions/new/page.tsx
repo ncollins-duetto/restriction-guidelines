@@ -126,7 +126,7 @@ export default function NewRestrictionPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader
-        breadcrumb={["Home", "Pricing & Strategy", "Restriction Rules", "New Rule"]}
+        breadcrumb={["Home", "Pricing & Strategy", "Restriction Guidelines", "New Rule"]}
       />
 
       <div className="flex flex-col flex-1 px-6 py-5 max-w-5xl">
