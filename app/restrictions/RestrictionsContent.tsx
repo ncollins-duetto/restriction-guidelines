@@ -10,7 +10,9 @@ type RestrictionType = "CTS" | "CTA" | "CTD" | "MinSA" | "MinST" | "MaxSA" | "Ma
 type GuidelineRule = {
   id: string;
   name: string;
-  hotelGroup: string;
+  hotelCluster: string;
+  segment: string;
+  roomType: string;
   restrictions: { type: RestrictionType; value?: number }[];
   stayDate: string;
   criteria: string;
@@ -20,11 +22,17 @@ type GuidelineRule = {
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
+const HOTEL_CLUSTERS = ["00327803", "B&B Hotels", "Luxury Collection"];
+const SEGMENTS = ["OTA - Transient", "Corporate", "Leisure", "All Segments"];
+const ROOM_TYPES = ["All Room Types", "Standard", "Deluxe", "Suite"];
+
 const MOCK_RULES: GuidelineRule[] = [
   {
     id: "1",
     name: "Summer Weekend Min Stay",
-    hotelGroup: "00327803",
+    hotelCluster: "00327803",
+    segment: "OTA - Transient",
+    roomType: "All Room Types",
     restrictions: [{ type: "MinSA", value: 2 }],
     stayDate: "Jun 1 – Aug 31, 2026 (Fri–Sun)",
     criteria: "Everyday",
@@ -34,7 +42,9 @@ const MOCK_RULES: GuidelineRule[] = [
   {
     id: "2",
     name: "Holiday Closure",
-    hotelGroup: "00327803",
+    hotelCluster: "00327803",
+    segment: "All Segments",
+    roomType: "All Room Types",
     restrictions: [{ type: "CTA" }, { type: "CTD" }],
     stayDate: "Dec 23 – Jan 2, 2026 (All days)",
     criteria: "Everyday",
@@ -44,7 +54,9 @@ const MOCK_RULES: GuidelineRule[] = [
   {
     id: "3",
     name: "Conference Block Q1",
-    hotelGroup: "B&B Hotels",
+    hotelCluster: "B&B Hotels",
+    segment: "Corporate",
+    roomType: "Standard",
     restrictions: [{ type: "CTS" }],
     stayDate: "Jan 15 – Jan 20, 2026 (Mon–Thu)",
     criteria: "Everyday",
@@ -54,7 +66,9 @@ const MOCK_RULES: GuidelineRule[] = [
   {
     id: "4",
     name: "Low Demand Minimum",
-    hotelGroup: "B&B Hotels",
+    hotelCluster: "B&B Hotels",
+    segment: "Leisure",
+    roomType: "Deluxe",
     restrictions: [{ type: "MinSA", value: 1 }],
     stayDate: "Nov 1 – Nov 30, 2026 (Mon–Wed)",
     criteria: "Demand occupancy < 50%",
@@ -64,7 +78,9 @@ const MOCK_RULES: GuidelineRule[] = [
   {
     id: "5",
     name: "Peak Season Max Stay",
-    hotelGroup: "Luxury Collection",
+    hotelCluster: "Luxury Collection",
+    segment: "OTA - Transient",
+    roomType: "Suite",
     restrictions: [{ type: "MaxSA", value: 7 }],
     stayDate: "Jul 1 – Aug 31, 2026 (All days)",
     criteria: "Everyday",
@@ -72,8 +88,6 @@ const MOCK_RULES: GuidelineRule[] = [
     active: true,
   },
 ];
-
-const HOTEL_GROUPS = ["00327803", "B&B Hotels", "Luxury Collection"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -127,6 +141,22 @@ function CardViewIcon({ active }: { active: boolean }) {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M7 10l5 5 5-5H7z" />
+    </svg>
+  );
+}
+
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
 function Toggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
@@ -147,20 +177,40 @@ function Toggle({ active, onToggle }: { active: boolean; onToggle: () => void })
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export default function RestrictionsContent() {
-  const [activeGroups, setActiveGroups] = useState<string[]>(HOTEL_GROUPS);
+  const [selectedCluster, setSelectedCluster] = useState<string>(HOTEL_CLUSTERS[0]);
+  const [activeSegments, setActiveSegments] = useState<string[]>(SEGMENTS);
+  const [activeRoomTypes, setActiveRoomTypes] = useState<string[]>(ROOM_TYPES);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [ruleStates, setRuleStates] = useState<Record<string, boolean>>(
     Object.fromEntries(MOCK_RULES.map((r) => [r.id, r.active]))
   );
 
-  function toggleGroup(group: string) {
-    setActiveGroups((prev) =>
-      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group]
+  function toggleSegment(seg: string) {
+    setActiveSegments((prev) =>
+      prev.includes(seg) ? prev.filter((s) => s !== seg) : [...prev, seg]
     );
   }
 
-  function deselectAll() {
-    setActiveGroups([]);
+  function deselectAllSegments() {
+    setActiveSegments([]);
+  }
+
+  function selectAllSegments() {
+    setActiveSegments(SEGMENTS);
+  }
+
+  function toggleRoomType(rt: string) {
+    setActiveRoomTypes((prev) =>
+      prev.includes(rt) ? prev.filter((r) => r !== rt) : [...prev, rt]
+    );
+  }
+
+  function deselectAllRoomTypes() {
+    setActiveRoomTypes([]);
+  }
+
+  function selectAllRoomTypes() {
+    setActiveRoomTypes(ROOM_TYPES);
   }
 
   function toggleRule(id: string) {
@@ -168,19 +218,28 @@ export default function RestrictionsContent() {
   }
 
   const filteredRules = MOCK_RULES.filter((rule) => {
-    if (!activeGroups.includes(rule.hotelGroup)) return false;
+    if (rule.hotelCluster !== selectedCluster) return false;
+    if (!activeSegments.includes(rule.segment)) return false;
+    if (!activeRoomTypes.includes(rule.roomType)) return false;
     if (statusFilter === "active" && !ruleStates[rule.id]) return false;
     if (statusFilter === "inactive" && ruleStates[rule.id]) return false;
     return true;
   });
 
-  const groupedRules = HOTEL_GROUPS.reduce<Record<string, GuidelineRule[]>>((acc, group) => {
-    acc[group] = filteredRules.filter((r) => r.hotelGroup === group);
+  // Segments that appear in the selected cluster (for counts)
+  const clusterRules = MOCK_RULES.filter((r) => r.hotelCluster === selectedCluster);
+  const segmentCounts = SEGMENTS.reduce<Record<string, number>>((acc, seg) => {
+    acc[seg] = clusterRules.filter((r) => r.segment === seg).length;
+    return acc;
+  }, {});
+  const roomTypeCounts = ROOM_TYPES.reduce<Record<string, number>>((acc, rt) => {
+    acc[rt] = clusterRules.filter((r) => r.roomType === rt).length;
     return acc;
   }, {});
 
-  const ruleCounts = HOTEL_GROUPS.reduce<Record<string, number>>((acc, group) => {
-    acc[group] = MOCK_RULES.filter((r) => r.hotelGroup === group).length;
+  // Group filtered rules by segment
+  const groupedBySegment = SEGMENTS.reduce<Record<string, GuidelineRule[]>>((acc, seg) => {
+    acc[seg] = filteredRules.filter((r) => r.segment === seg);
     return acc;
   }, {});
 
@@ -191,37 +250,71 @@ export default function RestrictionsContent() {
         className="shrink-0 py-5 px-5 border-r"
         style={{ width: "260px", borderColor: "#dde1e2", backgroundColor: "#fafafa" }}
       >
+        {/* Segments */}
         <div className="mb-6">
           <p className="text-[15px] font-bold mb-2" style={{ color: "#1a2533" }}>
-            Hotel Groups
+            Segments
           </p>
           <button
-            onClick={deselectAll}
+            onClick={activeSegments.length === SEGMENTS.length ? deselectAllSegments : selectAllSegments}
             className="text-[13px] mb-2 hover:underline"
             style={{ color: "#006461" }}
           >
-            Deselect All
+            {activeSegments.length === SEGMENTS.length ? "Deselect All" : "Select All"}
           </button>
           <div className="flex flex-col gap-1.5">
-            {HOTEL_GROUPS.map((group) => (
-              <label key={group} className="flex items-center justify-between cursor-pointer">
+            {SEGMENTS.map((seg) => (
+              <label key={seg} className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={activeGroups.includes(group)}
-                    onChange={() => toggleGroup(group)}
+                    checked={activeSegments.includes(seg)}
+                    onChange={() => toggleSegment(seg)}
                     className="w-4 h-4 rounded accent-[#006461]"
                   />
-                  <span className="text-[13px]" style={{ color: "#1a2533" }}>{group}</span>
+                  <span className="text-[13px]" style={{ color: "#1a2533" }}>{seg}</span>
                 </div>
                 <span className="text-[12px]" style={{ color: "#9aa5ab" }}>
-                  ({ruleCounts[group]})
+                  ({segmentCounts[seg]})
                 </span>
               </label>
             ))}
           </div>
         </div>
 
+        {/* Room Type */}
+        <div className="mb-6">
+          <p className="text-[15px] font-bold mb-2" style={{ color: "#1a2533" }}>
+            Room Type
+          </p>
+          <button
+            onClick={activeRoomTypes.length === ROOM_TYPES.length ? deselectAllRoomTypes : selectAllRoomTypes}
+            className="text-[13px] mb-2 hover:underline"
+            style={{ color: "#006461" }}
+          >
+            {activeRoomTypes.length === ROOM_TYPES.length ? "Deselect All" : "Select All"}
+          </button>
+          <div className="flex flex-col gap-1.5">
+            {ROOM_TYPES.map((rt) => (
+              <label key={rt} className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={activeRoomTypes.includes(rt)}
+                    onChange={() => toggleRoomType(rt)}
+                    className="w-4 h-4 rounded accent-[#006461]"
+                  />
+                  <span className="text-[13px]" style={{ color: "#1a2533" }}>{rt}</span>
+                </div>
+                <span className="text-[12px]" style={{ color: "#9aa5ab" }}>
+                  ({roomTypeCounts[rt]})
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Status */}
         <div>
           <p className="text-[15px] font-bold mb-2" style={{ color: "#1a2533" }}>
             Status
@@ -247,11 +340,13 @@ export default function RestrictionsContent() {
 
       {/* ── Main content ── */}
       <main className="flex-1 flex flex-col">
+        {/* Header bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "#dde1e2" }}>
-          <h1 className="text-[22px] font-bold" style={{ color: "#1a2533" }}>
-            Restriction Guidelines
-          </h1>
+          {/* Left: title + action buttons */}
           <div className="flex items-center gap-3">
+            <h1 className="text-[22px] font-bold" style={{ color: "#1a2533" }}>
+              Restriction Guidelines
+            </h1>
             <Link
               href="/restrictions/new"
               className="flex items-center gap-1.5 px-4 h-8 rounded text-[13px] font-bold"
@@ -260,6 +355,45 @@ export default function RestrictionsContent() {
               <PlusIcon />
               New
             </Link>
+            <button
+              className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px]"
+              style={{ borderColor: "#9aa5ab", color: "#4f5b60", backgroundColor: "#ffffff" }}
+            >
+              <DownloadIcon />
+              Download
+            </button>
+            <button
+              className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px]"
+              style={{ borderColor: "#9aa5ab", color: "#4f5b60", backgroundColor: "#ffffff" }}
+            >
+              <DownloadIcon />
+              Download for All Clusters
+            </button>
+          </div>
+
+          {/* Right: cluster dropdown + view toggle */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold" style={{ color: "#1a2533" }}>
+                Hotel Cluster
+              </span>
+              <div className="relative">
+                <select
+                  value={selectedCluster}
+                  onChange={(e) => setSelectedCluster(e.target.value)}
+                  className="h-8 pl-3 pr-8 rounded border text-[13px] outline-none appearance-none"
+                  style={{ borderColor: "#9aa5ab", color: "#1a2533", backgroundColor: "#ffffff", minWidth: "140px" }}
+                >
+                  {HOTEL_CLUSTERS.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" style={{ color: "#4f5b60" }}>
+                  <ChevronDownIcon />
+                </span>
+              </div>
+            </div>
+
             <div className="flex rounded overflow-hidden border" style={{ borderColor: "#dde1e2" }}>
               <button
                 className="w-8 h-8 flex items-center justify-center"
@@ -279,28 +413,29 @@ export default function RestrictionsContent() {
           </div>
         </div>
 
+        {/* Card area */}
         <div className="flex-1 px-6 py-5" style={{ backgroundColor: "#f5f5f5" }}>
-          {HOTEL_GROUPS.map((group) => {
-            const rules = groupedRules[group];
-            if (!activeGroups.includes(group)) return null;
-            return (
-              <div key={group} className="mb-8">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="flex-1 h-px" style={{ backgroundColor: "#dde1e2" }} />
-                  <span
-                    className="text-[11px] font-bold uppercase tracking-widest px-2"
-                    style={{ color: "#9aa5ab" }}
-                  >
-                    {group}
-                  </span>
-                  <div className="flex-1 h-px" style={{ backgroundColor: "#dde1e2" }} />
-                </div>
-
-                {rules.length === 0 ? (
-                  <p className="text-[13px] text-center py-6" style={{ color: "#9aa5ab" }}>
-                    No rules match current filters.
-                  </p>
-                ) : (
+          {filteredRules.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20" style={{ color: "#9aa5ab" }}>
+              <p className="text-[15px] font-bold mb-1">No guidelines match current filters</p>
+              <p className="text-[13px]">Try adjusting the segment, room type, or status filters.</p>
+            </div>
+          ) : (
+            SEGMENTS.map((seg) => {
+              const rules = groupedBySegment[seg];
+              if (!rules || rules.length === 0) return null;
+              return (
+                <div key={seg} className="mb-8">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex-1 h-px" style={{ backgroundColor: "#dde1e2" }} />
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-widest px-2"
+                      style={{ color: "#9aa5ab" }}
+                    >
+                      {seg}
+                    </span>
+                    <div className="flex-1 h-px" style={{ backgroundColor: "#dde1e2" }} />
+                  </div>
                   <div className="flex flex-col gap-3">
                     {rules.map((rule) => (
                       <GuidelineCard
@@ -311,16 +446,9 @@ export default function RestrictionsContent() {
                       />
                     ))}
                   </div>
-                )}
-              </div>
-            );
-          })}
-
-          {filteredRules.length === 0 && activeGroups.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20" style={{ color: "#9aa5ab" }}>
-              <p className="text-[15px] font-bold mb-1">No hotel groups selected</p>
-              <p className="text-[13px]">Select a group from the sidebar to see guidelines.</p>
-            </div>
+                </div>
+              );
+            })
           )}
         </div>
       </main>
@@ -345,9 +473,9 @@ function GuidelineCard({
         <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0 mr-4">
           <span
             className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
-            style={{ backgroundColor: "#c4ff45", color: "#0e2124" }}
+            style={{ backgroundColor: "#e0e7ef", color: "#1a2533" }}
           >
-            {rule.hotelGroup}
+            {rule.segment}
           </span>
           <span className="text-[15px] font-bold truncate" style={{ color: "#1a2533" }}>
             {rule.name}
@@ -367,7 +495,7 @@ function GuidelineCard({
 
       <div className="px-4 pb-3">
         <p className="text-[13px]" style={{ color: "#4f5b60" }}>
-          Enterprise Level — {restrictionSummary(rule.restrictions)}
+          {rule.roomType} — {restrictionSummary(rule.restrictions)}
         </p>
       </div>
 
