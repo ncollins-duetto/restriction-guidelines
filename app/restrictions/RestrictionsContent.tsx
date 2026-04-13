@@ -356,14 +356,14 @@ export default function RestrictionsContent() {
               New
             </Link>
             <button
-              className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px]"
+              className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px] whitespace-nowrap"
               style={{ borderColor: "#9aa5ab", color: "#4f5b60", backgroundColor: "#ffffff" }}
             >
               <DownloadIcon />
               Download
             </button>
             <button
-              className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px]"
+              className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px] whitespace-nowrap"
               style={{ borderColor: "#9aa5ab", color: "#4f5b60", backgroundColor: "#ffffff" }}
             >
               <DownloadIcon />
