@@ -45,7 +45,8 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
     items: [
       { label: "Rate Guidelines" },
       { label: "Restriction Guidelines", href: "/restrictions" },
-      { label: "Enterprise Hotel Groups" },
+      { label: "Restriction Guidelines V2", href: "/restrictions-v2" },
+      { label: "Hotel Groups" },
       { label: "Sub Rates" },
     ],
   },
