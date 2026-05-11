@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { colors, typography } from "@/lib/tokens";
 
-const LOGO_URL =
-  "https://www.figma.com/api/mcp/asset/19c3c66e-f32d-48c4-a8d1-127851011ea6";
+const LOGO_URL = "/duetto-logo.svg";
 
 // ─── Mega-menu structure ────────────────────────────────────────────────────
 // Matches the production Pricing & Strategy mega-menu exactly.
@@ -46,6 +46,7 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
       { label: "Rate Guidelines" },
       { label: "Restriction Guidelines", href: "/restrictions" },
       { label: "Restriction Guidelines V2", href: "/restrictions-v2" },
+      { label: "Restriction Guidelines V3", href: "/restrictions-v3" },
       { label: "Hotel Groups" },
       { label: "Sub Rates" },
     ],
@@ -121,7 +122,10 @@ function SettingsIcon() {
 
 function AvatarIcon() {
   return (
-    <div className="w-5 h-5 rounded-full bg-[#ff5900] flex items-center justify-center">
+    <div
+      className="w-5 h-5 rounded-full flex items-center justify-center"
+      style={{ backgroundColor: colors.avatar }}
+    >
       <span className="text-white text-[10px] font-bold leading-none">N</span>
     </div>
   );
@@ -129,7 +133,7 @@ function AvatarIcon() {
 
 function BuildingIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="#006461">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={colors.primary}>
       <path d="M17 11V3H7v4H3v14h8v-4h2v4h8V11h-4zM7 19H5v-2h2v2zm0-4H5v-2h2v2zm0-4H5v-2h2v2zm4 4H9v-2h2v2zm0-4H9v-2h2v2zm0-4H9V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2zm0-4h-2V7h2v2zm4 8h-2v-2h2v2zm0-4h-2v-2h2v2z" />
     </svg>
   );
@@ -148,23 +152,21 @@ function MegaMenu({ columns, onClose }: { columns: MegaMenuColumn[]; onClose: ()
         zIndex: 50,
         display: "flex",
         boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-        backgroundColor: "#ffffff",
-        borderTop: "2px solid #c4ff45",
-        borderBottom: "1px solid #dde1e2",
+        backgroundColor: colors.white,
+        borderTop: `2px solid ${colors.navAccent}`,
+        borderBottom: `1px solid ${colors.border}`,
         padding: "20px 24px",
         gap: "40px",
       }}
     >
       {columns.map((col) => (
         <div key={col.header} style={{ minWidth: "160px" }}>
-          {/* Column header */}
           <p
             className="text-[11px] font-bold uppercase tracking-widest mb-3"
-            style={{ color: "#4f5b60" }}
+            style={{ color: colors.textSecondary }}
           >
             {col.header}
           </p>
-          {/* Flat item list */}
           <div className="flex flex-col gap-0.5">
             {col.items.map((item) =>
               item.href ? (
@@ -173,7 +175,7 @@ function MegaMenu({ columns, onClose }: { columns: MegaMenuColumn[]; onClose: ()
                   href={item.href}
                   onClick={onClose}
                   className="text-[13px] py-0.5 font-bold"
-                  style={{ color: "#006461" }}
+                  style={{ color: colors.primary }}
                 >
                   {item.label}
                 </Link>
@@ -181,7 +183,7 @@ function MegaMenu({ columns, onClose }: { columns: MegaMenuColumn[]; onClose: ()
                 <span
                   key={item.label}
                   className="text-[13px] py-0.5"
-                  style={{ color: "#006461" }}
+                  style={{ color: colors.primary }}
                 >
                   {item.label}
                 </span>
@@ -208,7 +210,6 @@ export default function AppHeader({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const headerRef = useRef<HTMLElement>(null);
 
-  // Close on click outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
@@ -225,11 +226,11 @@ export default function AppHeader({
   }
 
   return (
-    <header ref={headerRef} className="w-full relative z-40">
+    <header ref={headerRef} className="w-full relative z-40" style={{ fontFamily: typography.fontFamily }}>
       {/* Top nav bar */}
       <div
         className="flex items-center gap-4 h-10 px-6"
-        style={{ backgroundColor: "#0e2124" }}
+        style={{ backgroundColor: colors.navBg }}
       >
         {/* Duetto logo */}
         <div className="shrink-0 h-[15px] w-[72px]">
@@ -245,13 +246,13 @@ export default function AppHeader({
               className="flex items-center gap-0.5 h-10 px-4 text-[13px] shrink-0 cursor-pointer transition-colors"
               style={
                 item.active
-                  ? { backgroundColor: "#c4ff45", color: "#0e2124" }
-                  : { color: "#ffffff" }
+                  ? { backgroundColor: colors.navAccent, color: colors.navBg }
+                  : { color: colors.white }
               }
             >
               {item.label}
               {item.hasDropdown && (
-                <span style={item.active ? { color: "#0e2124" } : { color: "#ffffff" }}>
+                <span style={item.active ? { color: colors.navBg } : { color: colors.white }}>
                   <ChevronDownIcon />
                 </span>
               )}
@@ -290,21 +291,21 @@ export default function AppHeader({
       {/* Breadcrumb + property picker bar */}
       <div
         className="flex items-center justify-between h-8 pl-6 border-b"
-        style={{ backgroundColor: "#fafafa", borderColor: "#dde1e2" }}
+        style={{ backgroundColor: colors.surfaceBg, borderColor: colors.border }}
       >
         {/* Breadcrumb */}
         <div className="flex items-center gap-1">
           {breadcrumb.map((crumb, i) => (
             <span key={crumb} className="flex items-center gap-1">
               {i > 0 && (
-                <span style={{ color: "#4f5b60" }}>
+                <span style={{ color: colors.textSecondary }}>
                   <ChevronRightIcon />
                 </span>
               )}
               <span
                 className="text-[12px]"
                 style={{
-                  color: i === breadcrumb.length - 1 ? "#4f5b60" : "#006461",
+                  color: i === breadcrumb.length - 1 ? colors.textSecondary : colors.primary,
                 }}
               >
                 {crumb}
@@ -313,16 +314,16 @@ export default function AppHeader({
           ))}
         </div>
 
-        {/* Property picker */}
+        {/* Property picker — disabled/non-interactive in prototype */}
         <div
-          className="flex items-center gap-2 h-8 px-2 w-[312px] border-l cursor-pointer"
-          style={{ borderColor: "#dde1e2" }}
+          className="flex items-center gap-2 h-8 px-2 w-[312px] border-l"
+          style={{ borderColor: colors.border, cursor: "default", opacity: 0.5 }}
         >
           <BuildingIcon />
-          <span className="flex-1 text-[13px] truncate" style={{ color: "#006461" }}>
+          <span className="flex-1 text-[13px] truncate" style={{ color: colors.primary }}>
             {propertyName}
           </span>
-          <span style={{ color: "#4f5b60" }}>
+          <span style={{ color: colors.textSecondary }}>
             <ChevronDownIcon />
           </span>
         </div>

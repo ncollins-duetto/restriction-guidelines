@@ -1,5 +1,5 @@
 {
-  "name": "cluster-restrictions",
+  "name": "restriction-guidelines",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "git push && vercel deploy --prod --yes"
+    "deploy:preview": "env -u NODE_OPTIONS vercel --yes"
   },
   "dependencies": {
     "next": "16.2.3",
