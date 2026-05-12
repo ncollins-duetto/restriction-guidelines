@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "restrictions-prototype",
-      "runtimeExecutable": "/Users/nylecollins/dev/experiments/restrictions-prototype/.claude/dev.sh",
-      "runtimeArgs": [],
+      "name": "cluster-restrictions",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000
     }
   ]

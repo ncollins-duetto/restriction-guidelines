@@ -4,7 +4,54 @@ import { useState } from "react";
 import Link from "next/link";
 import { colors } from "@/lib/tokens";
 import type { RestrictionType, GuidelineRule } from "@/lib/types";
-import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES, MOCK_RULES } from "@/lib/data";
+import { SEGMENTS, ROOM_TYPES } from "@/lib/data";
+
+type StrategyRule = GuidelineRule & { locked?: boolean; guidelineNote?: boolean };
+
+// ─── Mock data ────────────────────────────────────────────────────────────────
+
+const MOCK_STRATEGY_RULES: StrategyRule[] = [
+  {
+    id: "1",
+    name: "Summer Weekend Min Stay",
+    hotelGroup: "Central-North Europe",
+    segment: "OTA - Transient",
+    roomType: "All Room Types",
+    restrictions: [{ type: "MinSA", value: 2 }],
+    stayDate: "Jun 1 – Aug 31, 2026 (Fri–Sun)",
+    criteria: "Everyday",
+    created: "Sophie Laurent at 4/9/2026",
+    active: true,
+    locked: false,
+  },
+  {
+    id: "2",
+    name: "Holiday Closure",
+    hotelGroup: "Central-North Europe",
+    segment: "Property",
+    roomType: "All Room Types",
+    restrictions: [{ type: "CTA" }, { type: "CTD" }],
+    stayDate: "Dec 23 – Jan 2, 2026 (All days)",
+    criteria: "Everyday",
+    created: "Marcus Weber at 4/9/2026",
+    active: true,
+    locked: true,
+  },
+  {
+    id: "3",
+    name: "Holiday Closure",
+    hotelGroup: "Central-North Europe",
+    segment: "Property",
+    roomType: "All Room Types",
+    restrictions: [{ type: "CTA" }, { type: "CTD" }],
+    stayDate: "Dec 23 – Jan 2, 2026 (All days)",
+    criteria: "Everyday",
+    created: "Marcus Weber at 4/9/2026",
+    active: true,
+    locked: true,
+    guidelineNote: true,
+  },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,10 +107,10 @@ function DeleteIcon() {
   );
 }
 
-function DownloadIcon() {
+function LockIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5v-2z" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill={colors.textDisabled}>
+      <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
     </svg>
   );
 }
@@ -78,12 +125,24 @@ function ChevronDownIcon() {
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
-function Toggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+function Toggle({
+  active,
+  onToggle,
+  disabled,
+}: {
+  active: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
-      onClick={onToggle}
+      onClick={disabled ? undefined : onToggle}
       className="relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors"
-      style={{ backgroundColor: active ? colors.primary : colors.border }}
+      style={{
+        backgroundColor: disabled ? colors.border : active ? colors.primary : colors.border,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
     >
       <span
         className="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform mt-0.5"
@@ -110,41 +169,134 @@ function SectionDivider({ label }: { label: string }) {
   );
 }
 
-// ─── Info tooltip ─────────────────────────────────────────────────────────────
+// ─── Strategy Card ────────────────────────────────────────────────────────────
 
-function InfoTooltip({ text }: { text: string }) {
-  const [show, setShow] = useState(false);
+function StrategyCard({
+  rule,
+  active,
+  onToggle,
+}: {
+  rule: StrategyRule;
+  active: boolean;
+  onToggle: () => void;
+}) {
+  const locked = !!rule.locked;
+  const isProperty = rule.segment === "Property";
+
   return (
     <div
-      className="relative inline-flex items-center"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
+      className="rounded group"
+      style={{
+        backgroundColor: locked ? "#EBEBEB" : colors.white,
+        boxShadow: locked
+          ? "none"
+          : "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
+        border: locked ? `1px solid ${colors.border}` : "none",
+      }}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill={colors.textDisabled} style={{ cursor: "default" }}>
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-      </svg>
-      {show && (
-        <div
-          className="absolute left-6 top-0 z-50 rounded shadow-lg px-3 py-2 text-[12px] leading-relaxed"
-          style={{ backgroundColor: colors.textPrimary, color: colors.white, width: "280px", pointerEvents: "none" }}
-        >
-          {text}
+      <div className="flex items-start justify-between px-4 pt-4 pb-2">
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0 mr-4">
+          {locked && <LockIcon />}
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
+            style={
+              isProperty
+                ? { backgroundColor: colors.chipProperty, color: colors.primary }
+                : { backgroundColor: colors.chipSegment, color: colors.textPrimary }
+            }
+          >
+            {rule.segment}
+          </span>
+          <span className="text-[15px] font-bold truncate" style={{ color: colors.textPrimary }}>
+            {rule.name}
+          </span>
         </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {!locked && (
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
+                title="Copy"
+              >
+                <CopyIcon />
+              </button>
+              <button
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
+                title="Edit"
+              >
+                <EditIcon />
+              </button>
+              <button
+                className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
+                title="Delete"
+              >
+                <DeleteIcon />
+              </button>
+            </div>
+          )}
+          <Toggle active={active} onToggle={onToggle} disabled={locked} />
+        </div>
+      </div>
+
+      <div className="px-4 pb-3">
+        <p className="text-[13px]" style={{ color: colors.textSecondary }}>
+          {rule.roomType} — {restrictionSummary(rule.restrictions)}
+        </p>
+      </div>
+
+      <div className="border-t mx-4" style={{ borderColor: colors.border }} />
+
+      <div className="px-4 py-3 flex flex-col gap-1.5">
+        <DetailRow label="Stay Date" value={rule.stayDate} />
+        <DetailRow label="Criteria" value={rule.criteria} />
+        <DetailRow label="Created" value={rule.created} />
+      </div>
+
+      {rule.guidelineNote && (
+        <>
+          <div className="border-t mx-4" style={{ borderColor: colors.border }} />
+          <div className="px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <LockIcon />
+              <span className="text-[12px]" style={{ color: colors.textSecondary }}>
+                Guideline set for the hotel group — can only be edited in
+              </span>
+              <Link
+                href="/restrictions"
+                className="text-[12px] font-bold hover:underline"
+                style={{ color: colors.primary }}
+              >
+                Restriction Guidelines
+              </Link>
+            </div>
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-1">
+      <span className="text-[12px] w-20 shrink-0 text-right" style={{ color: colors.textDisabled }}>
+        {label}:
+      </span>
+      <span className="text-[13px]" style={{ color: colors.textPrimary }}>
+        {value}
+      </span>
     </div>
   );
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export default function RestrictionsContent() {
-  const [selectedGroup, setSelectedGroup] = useState<string>(HOTEL_GROUPS[0]);
-  const [propertySelected, setPropertySelected] = useState(true);
+export default function StrategyContent() {
   const [activeSegments, setActiveSegments] = useState<string[]>(SEGMENTS);
   const [activeRoomTypes, setActiveRoomTypes] = useState<string[]>(ROOM_TYPES);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [ruleStates, setRuleStates] = useState<Record<string, boolean>>(
-    Object.fromEntries(MOCK_RULES.map((r) => [r.id, r.active]))
+    Object.fromEntries(MOCK_STRATEGY_RULES.map((r) => [r.id, r.active]))
   );
 
   function toggleSegment(seg: string) {
@@ -163,20 +315,14 @@ export default function RestrictionsContent() {
     setRuleStates((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
-  // All rules for the selected group
-  const groupRules = MOCK_RULES.filter((r) => r.hotelGroup === selectedGroup);
-
-  // Property rules: shown when property filter is selected, filtered by status
-  const propertyRules = groupRules.filter((rule) => {
+  const propertyRules = MOCK_STRATEGY_RULES.filter((rule) => {
     if (rule.segment !== "Property") return false;
-    if (!propertySelected) return false;
     if (statusFilter === "active" && !ruleStates[rule.id]) return false;
     if (statusFilter === "inactive" && ruleStates[rule.id]) return false;
     return true;
   });
 
-  // Segment rules: filtered by segment + room type + status
-  const filteredSegmentRules = groupRules.filter((rule) => {
+  const filteredSegmentRules = MOCK_STRATEGY_RULES.filter((rule) => {
     if (rule.segment === "Property") return false;
     if (!activeSegments.includes(rule.segment)) return false;
     if (!activeRoomTypes.includes(rule.roomType)) return false;
@@ -185,8 +331,7 @@ export default function RestrictionsContent() {
     return true;
   });
 
-  // Counts for segment filter (exclude Property rules)
-  const segmentOnlyRules = groupRules.filter((r) => r.segment !== "Property");
+  const segmentOnlyRules = MOCK_STRATEGY_RULES.filter((r) => r.segment !== "Property");
   const segmentCounts = SEGMENTS.reduce<Record<string, number>>((acc, seg) => {
     acc[seg] = segmentOnlyRules.filter((r) => r.segment === seg).length;
     return acc;
@@ -196,8 +341,7 @@ export default function RestrictionsContent() {
     return acc;
   }, {});
 
-  // Group segment rules by segment for display
-  const groupedBySegment = SEGMENTS.reduce<Record<string, GuidelineRule[]>>((acc, seg) => {
+  const groupedBySegment = SEGMENTS.reduce<Record<string, StrategyRule[]>>((acc, seg) => {
     acc[seg] = filteredSegmentRules.filter((r) => r.segment === seg);
     return acc;
   }, {});
@@ -209,90 +353,26 @@ export default function RestrictionsContent() {
       className="flex flex-col flex-1 px-6 py-5"
       style={{ backgroundColor: colors.pageBg }}
     >
-      {/* ── Title + actions row ── */}
+      {/* Title + actions */}
       <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <h1 className="text-[22px] font-bold" style={{ color: colors.textPrimary }}>
-            Restriction Guidelines
-          </h1>
-          <InfoTooltip text="Restriction guidelines define strategies across a hotel group. They can only be edited or removed from this page — any changes apply to all properties in the group." />
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px] whitespace-nowrap"
-            style={{ borderColor: colors.borderSubtle, color: colors.textSecondary, backgroundColor: colors.white }}
-          >
-            <DownloadIcon />
-            Download
-          </button>
-          <button
-            className="flex items-center gap-1.5 px-3 h-8 rounded border text-[13px] whitespace-nowrap"
-            style={{ borderColor: colors.borderSubtle, color: colors.textSecondary, backgroundColor: colors.white }}
-          >
-            <DownloadIcon />
-            Download for All Groups
-          </button>
-          <Link
-            href={`/restrictions/new?group=${encodeURIComponent(selectedGroup)}`}
-            className="flex items-center gap-1.5 px-4 h-8 rounded text-[13px] font-bold"
-            style={{ backgroundColor: colors.primary, color: colors.white }}
-          >
-            <PlusIcon />
-            New
-          </Link>
-        </div>
+        <h1 className="text-[22px] font-bold" style={{ color: colors.textPrimary }}>
+          Restriction Strategy
+        </h1>
+        <Link
+          href="#"
+          className="flex items-center gap-1.5 px-4 h-8 rounded text-[13px] font-bold"
+          style={{ backgroundColor: colors.primary, color: colors.white }}
+        >
+          <PlusIcon />
+          New
+        </Link>
       </div>
 
-      {/* ── Content area: filters column + cards ── */}
+      {/* Sidebar + cards */}
       <div className="flex flex-1 gap-8">
 
-        {/* Filters column — inline, no background or border */}
+        {/* Filters */}
         <div className="shrink-0" style={{ width: "188px" }}>
-
-          {/* Hotel Group */}
-          <div className="mb-6">
-            <p className="text-[13px] font-bold mb-1.5" style={{ color: colors.textPrimary }}>
-              Hotel Group
-            </p>
-            <div className="relative">
-              <select
-                value={selectedGroup}
-                onChange={(e) => setSelectedGroup(e.target.value)}
-                className="h-8 pl-3 pr-8 rounded border text-[13px] outline-none appearance-none w-full"
-                style={{
-                  borderColor: colors.borderSubtle,
-                  color: colors.textPrimary,
-                  backgroundColor: colors.white,
-                }}
-              >
-                {HOTEL_GROUPS.map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
-              </select>
-              <span
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2"
-                style={{ color: colors.textSecondary }}
-              >
-                <ChevronDownIcon />
-              </span>
-            </div>
-          </div>
-
-          {/* Property */}
-          <div className="mb-6">
-            <p className="text-[13px] font-bold mb-1.5" style={{ color: colors.textPrimary }}>
-              Property
-            </p>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={propertySelected}
-                onChange={() => setPropertySelected((prev) => !prev)}
-                className={`w-4 h-4 rounded accent-[${colors.primary}]`}
-              />
-              <span className="text-[13px]" style={{ color: colors.textPrimary }}>Property</span>
-            </label>
-          </div>
 
           {/* Segments */}
           <div className="mb-6">
@@ -376,7 +456,7 @@ export default function RestrictionsContent() {
                 <label key={val} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
-                    name="status"
+                    name="strategy-status"
                     checked={statusFilter === val}
                     onChange={() => setStatusFilter(val)}
                     className={`accent-[${colors.primary}]`}
@@ -390,27 +470,24 @@ export default function RestrictionsContent() {
           </div>
         </div>
 
-        {/* ── Cards column ── */}
+        {/* Cards */}
         <div className="flex-1">
           {!hasAnyContent ? (
             <div
               className="flex flex-col items-center justify-center py-20"
               style={{ color: colors.textDisabled }}
             >
-              <p className="text-[15px] font-bold mb-1">No guidelines match current filters</p>
-              <p className="text-[13px]">
-                Try adjusting the segment, room type, or status filters.
-              </p>
+              <p className="text-[15px] font-bold mb-1">No rules match current filters</p>
+              <p className="text-[13px]">Try adjusting the segment, room type, or status filters.</p>
             </div>
           ) : (
             <>
-              {/* Property section — always shown, not controlled by segment filter */}
               {propertyRules.length > 0 && (
                 <div className="mb-8">
                   <SectionDivider label="Property" />
                   <div className="flex flex-col gap-3">
                     {propertyRules.map((rule) => (
-                      <GuidelineCard
+                      <StrategyCard
                         key={rule.id}
                         rule={rule}
                         active={ruleStates[rule.id]}
@@ -421,7 +498,6 @@ export default function RestrictionsContent() {
                 </div>
               )}
 
-              {/* Segment sections */}
               {SEGMENTS.map((seg) => {
                 const rules = groupedBySegment[seg];
                 if (!rules || rules.length === 0) return null;
@@ -430,7 +506,7 @@ export default function RestrictionsContent() {
                     <SectionDivider label={seg} />
                     <div className="flex flex-col gap-3">
                       {rules.map((rule) => (
-                        <GuidelineCard
+                        <StrategyCard
                           key={rule.id}
                           rule={rule}
                           active={ruleStates[rule.id]}
@@ -445,98 +521,6 @@ export default function RestrictionsContent() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── Guideline Card ───────────────────────────────────────────────────────────
-
-function GuidelineCard({
-  rule,
-  active,
-  onToggle,
-}: {
-  rule: GuidelineRule;
-  active: boolean;
-  onToggle: () => void;
-}) {
-  const isProperty = rule.segment === "Property";
-  return (
-    <div
-      className="rounded group"
-      style={{
-        backgroundColor: colors.white,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
-      }}
-    >
-      <div className="flex items-start justify-between px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0 mr-4">
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
-            style={
-              isProperty
-                ? { backgroundColor: colors.chipProperty, color: colors.primary }
-                : { backgroundColor: colors.chipSegment, color: colors.textPrimary }
-            }
-          >
-            {rule.segment}
-          </span>
-          <span className="text-[15px] font-bold truncate" style={{ color: colors.textPrimary }}>
-            {rule.name}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
-              title="Copy"
-            >
-              <CopyIcon />
-            </button>
-            <Link
-              href={`/restrictions/${rule.id}/edit`}
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
-              title="Edit"
-            >
-              <EditIcon />
-            </Link>
-            <button
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
-              title="Delete"
-            >
-              <DeleteIcon />
-            </button>
-          </div>
-          <Toggle active={active} onToggle={onToggle} />
-        </div>
-      </div>
-
-      <div className="px-4 pb-3">
-        <p className="text-[13px]" style={{ color: colors.textSecondary }}>
-          {rule.roomType} — {restrictionSummary(rule.restrictions)}
-        </p>
-      </div>
-
-      <div className="border-t mx-4" style={{ borderColor: colors.border }} />
-
-      <div className="px-4 py-3 flex flex-col gap-1.5">
-        <DetailRow label="Stay Date" value={rule.stayDate} />
-        <DetailRow label="Criteria" value={rule.criteria} />
-        <DetailRow label="Created" value={rule.created} />
-      </div>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline gap-1">
-      <span className="text-[12px] w-20 shrink-0 text-right" style={{ color: colors.textDisabled }}>
-        {label}:
-      </span>
-      <span className="text-[13px]" style={{ color: colors.textPrimary }}>
-        {value}
-      </span>
     </div>
   );
 }

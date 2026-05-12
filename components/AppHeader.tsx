@@ -33,7 +33,7 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
     header: "Configure",
     items: [
       { label: "Pricing Strategy" },
-      { label: "Restriction Strategy" },
+      { label: "Restriction Strategy", href: "/restriction-strategy" },
       { label: "Forecast Rules" },
       { label: "Autopilot" },
       { label: "Min/Max Bounds" },
@@ -45,8 +45,6 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
     items: [
       { label: "Rate Guidelines" },
       { label: "Restriction Guidelines", href: "/restrictions" },
-      { label: "Restriction Guidelines V2", href: "/restrictions-v2" },
-      { label: "Restriction Guidelines V3", href: "/restrictions-v3" },
       { label: "Hotel Groups" },
       { label: "Sub Rates" },
     ],
@@ -198,8 +196,10 @@ function MegaMenu({ columns, onClose }: { columns: MegaMenuColumn[]; onClose: ()
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
+type BreadcrumbItem = string | { label: string; href: string };
+
 type AppHeaderProps = {
-  breadcrumb?: string[];
+  breadcrumb?: BreadcrumbItem[];
   propertyName?: string;
 };
 
@@ -208,12 +208,14 @@ export default function AppHeader({
   propertyName = "All Properties",
 }: AppHeaderProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (headerRef.current && !headerRef.current.contains(e.target as Node)) {
         setOpenMenu(null);
+        setSettingsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -271,9 +273,43 @@ export default function AppHeader({
           <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
             <HelpIcon />
           </button>
-          <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
-            <SettingsIcon />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => { setSettingsOpen((p) => !p); setOpenMenu(null); }}
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10"
+            >
+              <SettingsIcon />
+            </button>
+            {settingsOpen && (
+              <div
+                className="absolute right-0 top-9 z-50 rounded shadow-lg py-1"
+                style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, minWidth: "200px" }}
+              >
+                <p
+                  className="px-3 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: colors.textSecondary }}
+                >
+                  Design Alts
+                </p>
+                <Link
+                  href="/restrictions-v2"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
+                  style={{ color: colors.primary }}
+                >
+                  Restriction Guidelines V2
+                </Link>
+                <Link
+                  href="/restrictions-v3"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
+                  style={{ color: colors.primary }}
+                >
+                  Restriction Guidelines V3
+                </Link>
+              </div>
+            )}
+          </div>
           <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10">
             <AvatarIcon />
           </button>
@@ -295,23 +331,36 @@ export default function AppHeader({
       >
         {/* Breadcrumb */}
         <div className="flex items-center gap-1">
-          {breadcrumb.map((crumb, i) => (
-            <span key={crumb} className="flex items-center gap-1">
-              {i > 0 && (
-                <span style={{ color: colors.textSecondary }}>
-                  <ChevronRightIcon />
-                </span>
-              )}
-              <span
-                className="text-[12px]"
-                style={{
-                  color: i === breadcrumb.length - 1 ? colors.textSecondary : colors.primary,
-                }}
-              >
-                {crumb}
+          {breadcrumb.map((crumb, i) => {
+            const label = typeof crumb === "string" ? crumb : crumb.label;
+            const href = typeof crumb === "string" ? undefined : crumb.href;
+            const isLast = i === breadcrumb.length - 1;
+            return (
+              <span key={label} className="flex items-center gap-1">
+                {i > 0 && (
+                  <span style={{ color: colors.textSecondary }}>
+                    <ChevronRightIcon />
+                  </span>
+                )}
+                {href ? (
+                  <Link
+                    href={href}
+                    className="text-[12px] hover:underline"
+                    style={{ color: colors.primary }}
+                  >
+                    {label}
+                  </Link>
+                ) : (
+                  <span
+                    className="text-[12px]"
+                    style={{ color: isLast ? colors.textSecondary : colors.primary }}
+                  >
+                    {label}
+                  </span>
+                )}
               </span>
-            </span>
-          ))}
+            );
+          })}
         </div>
 
         {/* Property picker — disabled/non-interactive in prototype */}

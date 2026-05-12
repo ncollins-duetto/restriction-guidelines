@@ -12,7 +12,9 @@ export const NEW_FORM_HOTEL_GROUPS = ["00327803", "B&B Hotels", "Luxury Collecti
 
 export const SEGMENTS = ["OTA - Transient", "Corporate", "Leisure"];
 export const ROOM_TYPES = ["All Room Types", "Standard", "Deluxe", "Suite"];
-export const STRATEGY_FOR_OPTIONS = ["Property", "Segment", "Room Type"];
+export const STRATEGY_FOR_OPTIONS = ["Property", "Yield Segments", "Room Type"];
+export const YIELD_SEGMENTS = ["OTA - Transient", "Corporate", "Leisure", "Government", "Group"];
+export const FORM_ROOM_TYPES = ["All Room Types", "Standard", "Deluxe", "Suite", "Junior Suite", "Penthouse"];
 
 export const RESTRICTIONS: RestrictionDef[] = [
   { key: "CTS", label: "Closed to Stay", hasValue: false },
@@ -23,6 +25,30 @@ export const RESTRICTIONS: RestrictionDef[] = [
   { key: "MinSA", label: "Min Stay Arrival", hasValue: true },
   { key: "MaxSA", label: "Max Stay Arrival", hasValue: true },
 ];
+
+export const MOCK_PROPERTIES_BY_GROUP: Record<string, { name: string; existingStrategies: number }[]> = {
+  "Central-North Europe": [
+    { name: "Grand Hotel Amsterdam", existingStrategies: 4 },
+    { name: "Berlin Mitte Suites", existingStrategies: 2 },
+    { name: "Copenhagen Plaza", existingStrategies: 6 },
+    { name: "Stockholm Harbour Inn", existingStrategies: 1 },
+  ],
+  "Western Europe": [
+    { name: "Paris Champs Élysées", existingStrategies: 3 },
+    { name: "Madrid Gran Via Hotel", existingStrategies: 5 },
+    { name: "Lisbon Heritage Hotel", existingStrategies: 0 },
+  ],
+  "Southern Europe": [
+    { name: "Rome Pantheon Suites", existingStrategies: 7 },
+    { name: "Athens Acropolis Hotel", existingStrategies: 2 },
+    { name: "Barcelona Ramblas", existingStrategies: 4 },
+  ],
+  "Eastern Europe": [
+    { name: "Warsaw Old Town Hotel", existingStrategies: 1 },
+    { name: "Prague Castle Inn", existingStrategies: 3 },
+    { name: "Budapest Danube View", existingStrategies: 5 },
+  ],
+};
 
 export const MOCK_RULES: GuidelineRule[] = [
   {
