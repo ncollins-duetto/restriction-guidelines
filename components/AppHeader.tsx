@@ -297,15 +297,7 @@ export default function AppHeader({
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
                 >
-                  Restriction Guidelines V2
-                </Link>
-                <Link
-                  href="/restrictions-v3"
-                  onClick={() => setSettingsOpen(false)}
-                  className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
-                  style={{ color: colors.primary }}
-                >
-                  Restriction Guidelines V3
+                  Alternative Restriction Guidelines
                 </Link>
               </div>
             )}

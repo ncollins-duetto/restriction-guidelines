@@ -15,6 +15,8 @@ type GuidelineRule = {
   roomType: string;
   restrictions: { type: RestrictionType; value?: number }[];
   stayDate: string;
+  dateRange: string;
+  daysOfWeek: string[];
   criteria: string;
   created: string;
   active: boolean;
@@ -25,6 +27,7 @@ type GuidelineRule = {
 const HOTEL_CLUSTERS = ["00327803", "B&B Hotels", "Luxury Collection"];
 const SEGMENTS = ["OTA - Transient", "Corporate", "Leisure", "All Segments"];
 const ROOM_TYPES = ["All Room Types", "Standard", "Deluxe", "Suite"];
+const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const MOCK_RULES: GuidelineRule[] = [
   {
@@ -35,6 +38,8 @@ const MOCK_RULES: GuidelineRule[] = [
     roomType: "All Room Types",
     restrictions: [{ type: "MinSA", value: 2 }],
     stayDate: "Jun 1 – Aug 31, 2026 (Fri–Sun)",
+    dateRange: "Jun 1 – Aug 31, 2026",
+    daysOfWeek: ["Fri", "Sat", "Sun"],
     criteria: "Everyday",
     created: "Nyle Collins at 4/9/2026",
     active: true,
@@ -47,6 +52,8 @@ const MOCK_RULES: GuidelineRule[] = [
     roomType: "All Room Types",
     restrictions: [{ type: "CTA" }, { type: "CTD" }],
     stayDate: "Dec 23 – Jan 2, 2026 (All days)",
+    dateRange: "Dec 23 – Jan 2, 2026",
+    daysOfWeek: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     criteria: "Everyday",
     created: "Nyle Collins at 4/9/2026",
     active: true,
@@ -59,6 +66,8 @@ const MOCK_RULES: GuidelineRule[] = [
     roomType: "Standard",
     restrictions: [{ type: "CTS" }],
     stayDate: "Jan 15 – Jan 20, 2026 (Mon–Thu)",
+    dateRange: "Jan 15 – Jan 20, 2026",
+    daysOfWeek: ["Mon", "Tue", "Wed", "Thu"],
     criteria: "Everyday",
     created: "Nyle Collins at 4/10/2026",
     active: false,
@@ -71,6 +80,8 @@ const MOCK_RULES: GuidelineRule[] = [
     roomType: "Deluxe",
     restrictions: [{ type: "MinSA", value: 1 }],
     stayDate: "Nov 1 – Nov 30, 2026 (Mon–Wed)",
+    dateRange: "Nov 1 – Nov 30, 2026",
+    daysOfWeek: ["Mon", "Tue", "Wed"],
     criteria: "Demand occupancy < 50%",
     created: "Nyle Collins at 4/10/2026",
     active: true,
@@ -83,6 +94,8 @@ const MOCK_RULES: GuidelineRule[] = [
     roomType: "Suite",
     restrictions: [{ type: "MaxSA", value: 7 }],
     stayDate: "Jul 1 – Aug 31, 2026 (All days)",
+    dateRange: "Jul 1 – Aug 31, 2026",
+    daysOfWeek: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     criteria: "Everyday",
     created: "Nyle Collins at 4/11/2026",
     active: true,
@@ -93,20 +106,13 @@ const MOCK_RULES: GuidelineRule[] = [
 
 function restrictionSummary(restrictions: GuidelineRule["restrictions"]): string {
   const labels: Record<RestrictionType, string> = {
-    CTS: "Closed to Stay",
-    CTA: "Closed to Arrival",
-    CTD: "Closed to Departure",
-    MinSA: "Min Stay Arrival",
-    MinST: "Min Stay Thru",
-    MaxSA: "Max Stay Arrival",
-    MaxST: "Max Stay Thru",
+    CTS: "Closed to Stay", CTA: "Closed to Arrival", CTD: "Closed to Departure",
+    MinSA: "Min Stay Arrival", MinST: "Min Stay Thru", MaxSA: "Max Stay Arrival", MaxST: "Max Stay Thru",
   };
-  return restrictions
-    .map((r) => {
-      const label = labels[r.type];
-      return r.value !== undefined ? `${label} ${r.value}` : label;
-    })
-    .join(", ");
+  return restrictions.map((r) => {
+    const label = labels[r.type];
+    return r.value !== undefined ? `${label} ${r.value}` : label;
+  }).join(", ");
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -127,7 +133,6 @@ function EditIcon() {
   );
 }
 
-// Card rows: two stacked horizontal bands
 function CardRowsIcon({ active }: { active: boolean }) {
   const color = active ? "#ffffff" : "#4f5b60";
   return (
@@ -138,7 +143,6 @@ function CardRowsIcon({ active }: { active: boolean }) {
   );
 }
 
-// List: three horizontal lines
 function ListLinesIcon({ active }: { active: boolean }) {
   const color = active ? "#ffffff" : "#4f5b60";
   return (
@@ -176,6 +180,14 @@ function ChevronDownIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="#c0392b">
+      <path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+    </svg>
+  );
+}
+
 // ─── Toggle ───────────────────────────────────────────────────────────────────
 
 function Toggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
@@ -193,6 +205,42 @@ function Toggle({ active, onToggle }: { active: boolean; onToggle: () => void })
   );
 }
 
+// ─── DayDots (table view) ─────────────────────────────────────────────────────
+
+function DayDots({ days }: { days: string[] }) {
+  return (
+    <div className="flex gap-1">
+      {DAYS_SHORT.map((d) => (
+        <span
+          key={d}
+          className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+          style={
+            days.includes(d)
+              ? { backgroundColor: "#006461", color: "#ffffff" }
+              : { backgroundColor: "#dde1e2", color: "#4f5b60" }
+          }
+        >
+          {d[0]}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ─── RestrictionBadge (table view) ───────────────────────────────────────────
+
+function RestrictionBadge({ type, value }: { type: RestrictionType; value?: number }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold"
+      style={{ backgroundColor: "#dce8f5", color: "#1e3a5f" }}
+    >
+      {type}
+      {value !== undefined && <span className="font-normal">={value}</span>}
+    </span>
+  );
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export default function RestrictionsV2Content() {
@@ -203,6 +251,7 @@ export default function RestrictionsV2Content() {
   const [ruleStates, setRuleStates] = useState<Record<string, boolean>>(
     Object.fromEntries(MOCK_RULES.map((r) => [r.id, r.active]))
   );
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [kebabOpen, setKebabOpen] = useState(false);
   const kebabRef = useRef<HTMLDivElement>(null);
 
@@ -217,22 +266,12 @@ export default function RestrictionsV2Content() {
   }, []);
 
   function toggleSegment(seg: string) {
-    setActiveSegments((prev) =>
-      prev.includes(seg) ? prev.filter((s) => s !== seg) : [...prev, seg]
-    );
+    setActiveSegments((prev) => prev.includes(seg) ? prev.filter((s) => s !== seg) : [...prev, seg]);
   }
-
-  function deselectAllSegments() { setActiveSegments([]); }
-  function selectAllSegments() { setActiveSegments(SEGMENTS); }
 
   function toggleRoomType(rt: string) {
-    setActiveRoomTypes((prev) =>
-      prev.includes(rt) ? prev.filter((r) => r !== rt) : [...prev, rt]
-    );
+    setActiveRoomTypes((prev) => prev.includes(rt) ? prev.filter((r) => r !== rt) : [...prev, rt]);
   }
-
-  function deselectAllRoomTypes() { setActiveRoomTypes([]); }
-  function selectAllRoomTypes() { setActiveRoomTypes(ROOM_TYPES); }
 
   function toggleRule(id: string) {
     setRuleStates((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -269,7 +308,6 @@ export default function RestrictionsV2Content() {
         className="shrink-0 py-5 px-5 border-r"
         style={{ width: "260px", borderColor: "#dde1e2", backgroundColor: "#fafafa" }}
       >
-        {/* Hotel Cluster — moved here from header */}
         <div className="mb-6">
           <p className="text-[15px] font-bold mb-2" style={{ color: "#1a2533" }}>Hotel Cluster</p>
           <div className="relative">
@@ -289,11 +327,10 @@ export default function RestrictionsV2Content() {
           </div>
         </div>
 
-        {/* Segments */}
         <div className="mb-6">
           <p className="text-[15px] font-bold mb-2" style={{ color: "#1a2533" }}>Segments</p>
           <button
-            onClick={activeSegments.length === SEGMENTS.length ? deselectAllSegments : selectAllSegments}
+            onClick={() => activeSegments.length === SEGMENTS.length ? setActiveSegments([]) : setActiveSegments(SEGMENTS)}
             className="text-[13px] mb-2 hover:underline"
             style={{ color: "#006461" }}
           >
@@ -303,12 +340,7 @@ export default function RestrictionsV2Content() {
             {SEGMENTS.map((seg) => (
               <label key={seg} className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={activeSegments.includes(seg)}
-                    onChange={() => toggleSegment(seg)}
-                    className="w-4 h-4 rounded accent-[#006461]"
-                  />
+                  <input type="checkbox" checked={activeSegments.includes(seg)} onChange={() => toggleSegment(seg)} className="w-4 h-4 rounded accent-[#006461]" />
                   <span className="text-[13px]" style={{ color: "#1a2533" }}>{seg}</span>
                 </div>
                 <span className="text-[12px]" style={{ color: "#9aa5ab" }}>({segmentCounts[seg]})</span>
@@ -317,11 +349,10 @@ export default function RestrictionsV2Content() {
           </div>
         </div>
 
-        {/* Room Type */}
         <div className="mb-6">
           <p className="text-[15px] font-bold mb-2" style={{ color: "#1a2533" }}>Room Type</p>
           <button
-            onClick={activeRoomTypes.length === ROOM_TYPES.length ? deselectAllRoomTypes : selectAllRoomTypes}
+            onClick={() => activeRoomTypes.length === ROOM_TYPES.length ? setActiveRoomTypes([]) : setActiveRoomTypes(ROOM_TYPES)}
             className="text-[13px] mb-2 hover:underline"
             style={{ color: "#006461" }}
           >
@@ -331,12 +362,7 @@ export default function RestrictionsV2Content() {
             {ROOM_TYPES.map((rt) => (
               <label key={rt} className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={activeRoomTypes.includes(rt)}
-                    onChange={() => toggleRoomType(rt)}
-                    className="w-4 h-4 rounded accent-[#006461]"
-                  />
+                  <input type="checkbox" checked={activeRoomTypes.includes(rt)} onChange={() => toggleRoomType(rt)} className="w-4 h-4 rounded accent-[#006461]" />
                   <span className="text-[13px]" style={{ color: "#1a2533" }}>{rt}</span>
                 </div>
                 <span className="text-[12px]" style={{ color: "#9aa5ab" }}>({roomTypeCounts[rt]})</span>
@@ -345,20 +371,13 @@ export default function RestrictionsV2Content() {
           </div>
         </div>
 
-        {/* Status */}
         <div>
           <p className="text-[15px] font-bold mb-2" style={{ color: "#1a2533" }}>Status</p>
           <div className="flex flex-col gap-1.5">
             {(["all", "active", "inactive"] as const).map((val) => (
               <label key={val} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="status-v2"
-                  checked={statusFilter === val}
-                  onChange={() => setStatusFilter(val)}
-                  className="accent-[#006461]"
-                />
-                <span className="text-[13px] capitalize" style={{ color: "#1a2533" }}>
+                <input type="radio" name="status-v2" checked={statusFilter === val} onChange={() => setStatusFilter(val)} className="accent-[#006461]" />
+                <span className="text-[13px]" style={{ color: "#1a2533" }}>
                   {val === "all" ? "All" : val === "active" ? "Only Active" : "Only Inactive"}
                 </span>
               </label>
@@ -368,19 +387,11 @@ export default function RestrictionsV2Content() {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header bar */}
-        <div
-          className="flex items-center justify-between px-6 py-4 border-b"
-          style={{ borderColor: "#dde1e2" }}
-        >
-          {/* Left: title + kebab */}
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: "#dde1e2" }}>
           <div className="flex items-center gap-2">
-            <h1 className="text-[22px] font-bold" style={{ color: "#1a2533" }}>
-              Restriction Guidelines
-            </h1>
-
-            {/* Kebab menu */}
+            <h1 className="text-[22px] font-bold" style={{ color: "#1a2533" }}>Restriction Guidelines</h1>
             <div className="relative" ref={kebabRef}>
               <button
                 onClick={() => setKebabOpen((o) => !o)}
@@ -392,66 +403,47 @@ export default function RestrictionsV2Content() {
               {kebabOpen && (
                 <div
                   className="absolute left-0 top-full mt-1 rounded border shadow-md z-20 py-1"
-                  style={{
-                    backgroundColor: "#ffffff",
-                    borderColor: "#dde1e2",
-                    minWidth: "220px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                  }}
+                  style={{ backgroundColor: "#ffffff", borderColor: "#dde1e2", minWidth: "220px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
                 >
-                  <button
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] hover:bg-[#f5f5f5] transition-colors text-left"
-                    style={{ color: "#1a2533" }}
-                    onClick={() => setKebabOpen(false)}
-                  >
-                    <DownloadIcon />
-                    Download
+                  <button className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] hover:bg-[#f5f5f5] transition-colors text-left" style={{ color: "#1a2533" }} onClick={() => setKebabOpen(false)}>
+                    <DownloadIcon />Download
                   </button>
-                  <button
-                    className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] hover:bg-[#f5f5f5] transition-colors text-left"
-                    style={{ color: "#1a2533" }}
-                    onClick={() => setKebabOpen(false)}
-                  >
-                    <DownloadIcon />
-                    Download for All Clusters
+                  <button className="w-full flex items-center gap-2.5 px-4 py-2 text-[13px] hover:bg-[#f5f5f5] transition-colors text-left" style={{ color: "#1a2533" }} onClick={() => setKebabOpen(false)}>
+                    <DownloadIcon />Download for All Clusters
                   </button>
                 </div>
               )}
             </div>
           </div>
-
-          {/* Right: New button */}
           <Link
             href="/restrictions-v2/new"
             className="flex items-center gap-1.5 px-4 h-8 rounded text-[13px] font-bold"
             style={{ backgroundColor: "#006461", color: "#ffffff" }}
           >
-            <PlusIcon />
-            New
+            <PlusIcon />New
           </Link>
         </div>
 
-        {/* Card area */}
-        <div className="flex-1 px-6 py-5" style={{ backgroundColor: "#f5f5f5" }}>
-          {/* View toggle — right-aligned above cards */}
+        {/* Content area */}
+        <div className="flex-1 px-6 py-5 overflow-auto" style={{ backgroundColor: "#f5f5f5" }}>
+          {/* View toggle */}
           <div className="flex justify-end mb-4">
-            <div
-              className="flex rounded overflow-hidden border"
-              style={{ borderColor: "#dde1e2", backgroundColor: "#ffffff" }}
-            >
+            <div className="flex rounded overflow-hidden border" style={{ borderColor: "#dde1e2", backgroundColor: "#ffffff" }}>
               <button
+                onClick={() => setViewMode("card")}
                 className="w-9 h-9 flex items-center justify-center transition-colors"
-                style={{ backgroundColor: "#006461" }}
+                style={{ backgroundColor: viewMode === "card" ? "#006461" : "#ffffff" }}
                 title="Card view"
               >
-                <CardRowsIcon active={true} />
+                <CardRowsIcon active={viewMode === "card"} />
               </button>
               <button
+                onClick={() => setViewMode("list")}
                 className="w-9 h-9 flex items-center justify-center transition-colors"
-                style={{ backgroundColor: "#ffffff" }}
+                style={{ backgroundColor: viewMode === "list" ? "#006461" : "#ffffff" }}
                 title="List view"
               >
-                <ListLinesIcon active={false} />
+                <ListLinesIcon active={viewMode === "list"} />
               </button>
             </div>
           </div>
@@ -461,7 +453,66 @@ export default function RestrictionsV2Content() {
               <p className="text-[15px] font-bold mb-1">No guidelines match current filters</p>
               <p className="text-[13px]">Try adjusting the segment, room type, or status filters.</p>
             </div>
+          ) : viewMode === "list" ? (
+            /* ── Table view ── */
+            <div className="rounded overflow-hidden border" style={{ borderColor: "#dde1e2", backgroundColor: "#ffffff" }}>
+              <table className="w-full border-collapse text-[13px]">
+                <thead>
+                  <tr style={{ borderBottom: "2px solid #dde1e2" }}>
+                    {["Rule Name", "Date Range", "Days of Week", "Segment", "Room Type", "Restrictions", "Status"].map((col) => (
+                      <th key={col} className="text-left py-2.5 px-4 font-bold text-[11px] uppercase tracking-wide whitespace-nowrap" style={{ color: "#4f5b60" }}>
+                        {col}
+                      </th>
+                    ))}
+                    <th className="w-8" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRules.map((rule, i) => (
+                    <tr
+                      key={rule.id}
+                      className="group hover:bg-[#f5f9ff] transition-colors"
+                      style={{ borderBottom: "1px solid #dde1e2", backgroundColor: i % 2 === 0 ? "#ffffff" : "#fafafa" }}
+                    >
+                      <td className="py-3 px-4 font-bold" style={{ color: "#1a2533" }}>{rule.name}</td>
+                      <td className="py-3 px-4 whitespace-nowrap" style={{ color: "#4f5b60" }}>{rule.dateRange}</td>
+                      <td className="py-3 px-4"><DayDots days={rule.daysOfWeek} /></td>
+                      <td className="py-3 px-4" style={{ color: "#4f5b60" }}>{rule.segment}</td>
+                      <td className="py-3 px-4" style={{ color: "#4f5b60" }}>{rule.roomType}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {rule.restrictions.map((r) => (
+                            <RestrictionBadge key={r.type} type={r.type} value={r.value} />
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold"
+                          style={ruleStates[rule.id]
+                            ? { backgroundColor: "#e6f4f1", color: "#006461" }
+                            : { backgroundColor: "#f0f0f0", color: "#4f5b60" }}
+                        >
+                          {ruleStates[rule.id] ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Link href={`/restrictions-v2/${rule.id}/edit`} className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#dce8f5] transition-colors" title="Edit">
+                            <EditIcon />
+                          </Link>
+                          <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-[#fdecea] transition-colors" title="Delete">
+                            <TrashIcon />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
+            /* ── Card view ── */
             SEGMENTS.map((seg) => {
               const rules = groupedBySegment[seg];
               if (!rules || rules.length === 0) return null;
@@ -469,22 +520,12 @@ export default function RestrictionsV2Content() {
                 <div key={seg} className="mb-8">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="flex-1 h-px" style={{ backgroundColor: "#dde1e2" }} />
-                    <span
-                      className="text-[11px] font-bold uppercase tracking-widest px-2"
-                      style={{ color: "#9aa5ab" }}
-                    >
-                      {seg}
-                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-widest px-2" style={{ color: "#9aa5ab" }}>{seg}</span>
                     <div className="flex-1 h-px" style={{ backgroundColor: "#dde1e2" }} />
                   </div>
                   <div className="flex flex-col gap-3">
                     {rules.map((rule) => (
-                      <GuidelineCard
-                        key={rule.id}
-                        rule={rule}
-                        active={ruleStates[rule.id]}
-                        onToggle={() => toggleRule(rule.id)}
-                      />
+                      <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
                     ))}
                   </div>
                 </div>
@@ -497,44 +538,27 @@ export default function RestrictionsV2Content() {
   );
 }
 
-function GuidelineCard({
-  rule,
-  active,
-  onToggle,
-}: {
-  rule: GuidelineRule;
-  active: boolean;
-  onToggle: () => void;
-}) {
+// ─── Card view components ─────────────────────────────────────────────────────
+
+function GuidelineCard({ rule, active, onToggle }: { rule: GuidelineRule; active: boolean; onToggle: () => void }) {
   return (
     <div className="rounded border bg-white group" style={{ borderColor: "#dde1e2" }}>
       <div className="flex items-start justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0 mr-4">
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
-            style={{ backgroundColor: "#e0e7ef", color: "#1a2533" }}
-          >
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0" style={{ backgroundColor: "#e0e7ef", color: "#1a2533" }}>
             {rule.segment}
           </span>
-          <span className="text-[15px] font-bold truncate" style={{ color: "#1a2533" }}>
-            {rule.name}
-          </span>
+          <span className="text-[15px] font-bold truncate" style={{ color: "#1a2533" }}>{rule.name}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href={`/restrictions-v2/${rule.id}/edit`}
-            className="w-7 h-7 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#dce8f5]"
-            title="Edit"
-          >
+          <Link href={`/restrictions-v2/${rule.id}/edit`} className="w-7 h-7 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#dce8f5]" title="Edit">
             <EditIcon />
           </Link>
           <Toggle active={active} onToggle={onToggle} />
         </div>
       </div>
       <div className="px-4 pb-3">
-        <p className="text-[13px]" style={{ color: "#4f5b60" }}>
-          {rule.roomType} — {restrictionSummary(rule.restrictions)}
-        </p>
+        <p className="text-[13px]" style={{ color: "#4f5b60" }}>{rule.roomType} — {restrictionSummary(rule.restrictions)}</p>
       </div>
       <div className="border-t mx-4" style={{ borderColor: "#f0f0f0" }} />
       <div className="px-4 py-3 flex flex-col gap-1.5">
@@ -549,12 +573,8 @@ function GuidelineCard({
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline gap-1">
-      <span className="text-[12px] w-20 shrink-0 text-right" style={{ color: "#9aa5ab" }}>
-        {label}:
-      </span>
-      <span className="text-[13px]" style={{ color: "#1a2533" }}>
-        {value}
-      </span>
+      <span className="text-[12px] w-20 shrink-0 text-right" style={{ color: "#9aa5ab" }}>{label}:</span>
+      <span className="text-[13px]" style={{ color: "#1a2533" }}>{value}</span>
     </div>
   );
 }
