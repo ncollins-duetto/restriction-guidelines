@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { colors } from "@/lib/tokens";
 import type { RestrictionType, GuidelineRule } from "@/lib/types";
-import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES, MOCK_RULES } from "@/lib/data";
+import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES } from "@/lib/data";
+import { useRestrictions } from "@/lib/restrictions-context";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -138,14 +139,18 @@ function InfoTooltip({ text }: { text: string }) {
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 export default function RestrictionsContent() {
+  const { rules, ruleStates, toggleRule, toast, clearToast } = useRestrictions();
   const [selectedGroup, setSelectedGroup] = useState<string>(HOTEL_GROUPS[0]);
   const [propertySelected, setPropertySelected] = useState(true);
   const [activeSegments, setActiveSegments] = useState<string[]>(SEGMENTS);
   const [activeRoomTypes, setActiveRoomTypes] = useState<string[]>(ROOM_TYPES);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [ruleStates, setRuleStates] = useState<Record<string, boolean>>(
-    Object.fromEntries(MOCK_RULES.map((r) => [r.id, r.active]))
-  );
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(clearToast, 3000);
+    return () => clearTimeout(t);
+  }, [toast, clearToast]);
 
   function toggleSegment(seg: string) {
     setActiveSegments((prev) =>
@@ -159,12 +164,8 @@ export default function RestrictionsContent() {
     );
   }
 
-  function toggleRule(id: string) {
-    setRuleStates((prev) => ({ ...prev, [id]: !prev[id] }));
-  }
-
   // All rules for the selected group
-  const groupRules = MOCK_RULES.filter((r) => r.hotelGroup === selectedGroup);
+  const groupRules = rules.filter((r) => r.hotelGroup === selectedGroup);
 
   // Property rules: shown when property filter is selected, filtered by status
   const propertyRules = groupRules.filter((rule) => {
@@ -445,6 +446,17 @@ export default function RestrictionsContent() {
           )}
         </div>
       </div>
+      {toast && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-lg shadow-xl text-[14px] font-semibold flex items-center gap-2"
+          style={{ backgroundColor: colors.primary, color: colors.white, whiteSpace: "nowrap" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+          </svg>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

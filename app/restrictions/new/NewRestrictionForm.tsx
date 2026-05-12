@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import SelectInput from "@/components/Select";
 import { colors } from "@/lib/tokens";
-import type { RestrictionType } from "@/lib/types";
+import type { RestrictionType, GuidelineRule } from "@/lib/types";
 import {
   RESTRICTIONS,
   HOTEL_GROUPS,
@@ -15,6 +15,7 @@ import {
   FORM_ROOM_TYPES,
   MOCK_PROPERTIES_BY_GROUP,
 } from "@/lib/data";
+import { useRestrictions } from "@/lib/restrictions-context";
 
 type RestrictionKey = RestrictionType;
 
@@ -95,22 +96,43 @@ function buildRestrictionSummary(checked: Record<RestrictionKey, boolean>, value
   return parts.join(", ") || "None";
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function seedStrategyFor(rule: GuidelineRule): string {
+  if (rule.segment === "Property") return "Property";
+  if (YIELD_SEGMENTS.includes(rule.segment)) return "Yield Segments";
+  return "Room Type";
+}
+
+function seedStrategyForValue(rule: GuidelineRule): string {
+  if (rule.segment !== "Property" && YIELD_SEGMENTS.includes(rule.segment)) return rule.segment;
+  if (rule.roomType && rule.roomType !== "All Room Types") return rule.roomType;
+  return "";
+}
+
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
-export default function NewRestrictionForm() {
+export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "create" | "edit"; seed?: GuidelineRule }) {
   const searchParams = useSearchParams();
-  const initialGroup = searchParams.get("group") ?? "";
+  const router = useRouter();
+  const { addRule, updateRule } = useRestrictions();
 
-  const [name, setName] = useState("");
+  const initialGroup = seed?.hotelGroup ?? searchParams.get("group") ?? "";
+  const initialStrategyFor = seed ? seedStrategyFor(seed) : "Property";
+  const initialStrategyForValue = seed ? seedStrategyForValue(seed) : "";
+  const initialCheckedRestrictions = Object.fromEntries(
+    RESTRICTIONS.map((r) => [r.key, !r.hasValue && (seed?.restrictions.some((x) => x.type === r.key) ?? false)])
+  ) as Record<RestrictionKey, boolean>;
+  const initialRestrictionValues = Object.fromEntries(
+    RESTRICTIONS.map((r) => [r.key, r.hasValue ? String(seed?.restrictions.find((x) => x.type === r.key)?.value ?? "") : ""])
+  ) as Record<RestrictionKey, string>;
+
+  const [name, setName] = useState(seed?.name ?? "");
   const [hotelGroup, setHotelGroup] = useState(initialGroup);
-  const [strategyFor, setStrategyFor] = useState("Property");
-  const [strategyForValue, setStrategyForValue] = useState("");
-  const [restrictionValues, setRestrictionValues] = useState<Record<RestrictionKey, string>>(
-    Object.fromEntries(RESTRICTIONS.map((r) => [r.key, ""])) as Record<RestrictionKey, string>
-  );
-  const [checkedRestrictions, setCheckedRestrictions] = useState<Record<RestrictionKey, boolean>>(
-    Object.fromEntries(RESTRICTIONS.map((r) => [r.key, false])) as Record<RestrictionKey, boolean>
-  );
+  const [strategyFor, setStrategyFor] = useState(initialStrategyFor);
+  const [strategyForValue, setStrategyForValue] = useState(initialStrategyForValue);
+  const [restrictionValues, setRestrictionValues] = useState<Record<RestrictionKey, string>>(initialRestrictionValues);
+  const [checkedRestrictions, setCheckedRestrictions] = useState<Record<RestrictionKey, boolean>>(initialCheckedRestrictions);
 
   // Stay Date
   const [stayDateModalOpen, setStayDateModalOpen] = useState(false);
@@ -212,6 +234,36 @@ export default function NewRestrictionForm() {
 
   const impactedProperties = MOCK_PROPERTIES_BY_GROUP[hotelGroup] ?? [];
 
+  function handleSaveEdit() {
+    if (!seed || !canSubmit) return;
+    const updates = buildRuleUpdates();
+    updateRule(seed.id, updates);
+    router.push("/restrictions");
+  }
+
+  function buildRuleUpdates(): Partial<GuidelineRule> {
+    let segment: string;
+    let roomType: string;
+    if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
+    else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
+    else { segment = seed?.segment ?? "Property"; roomType = strategyForValue || "All Room Types"; }
+
+    const restrictions: GuidelineRule["restrictions"] = [];
+    for (const r of RESTRICTIONS) {
+      if (r.hasValue && restrictionValues[r.key]) restrictions.push({ type: r.key, value: parseInt(restrictionValues[r.key]) });
+      else if (!r.hasValue && checkedRestrictions[r.key]) restrictions.push({ type: r.key });
+    }
+
+    const stayDateStr = stayDateConditions.length > 0
+      ? buildStayDateSummary(stayDateConditions, stayDateRanges, seasonalRanges, stayDateDays)
+      : (seed?.stayDate ?? "Everyday");
+    const criteriaStr = criteriaConditions.length > 0
+      ? criteriaConditions.join(", ")
+      : (seed?.criteria ?? "Everyday");
+
+    return { name, hotelGroup, segment, roomType, restrictions, stayDate: stayDateStr, criteria: criteriaStr };
+  }
+
   return (
     <div className="flex flex-col" style={{ height: "100vh" }}>
       <AppHeader
@@ -219,7 +271,7 @@ export default function NewRestrictionForm() {
           "Home",
           "Pricing & Strategy",
           { label: "Restriction Guidelines", href: "/restrictions" },
-          "New",
+          mode === "edit" ? "Edit" : "New",
         ]}
       />
 
@@ -229,7 +281,7 @@ export default function NewRestrictionForm() {
         style={{ backgroundColor: colors.surfaceBg, borderColor: colors.border }}
       >
         <h1 className="text-[20px] font-bold" style={{ color: colors.textPrimary }}>
-          New Restriction Guideline
+          {mode === "edit" ? "Edit Restriction Guideline" : "New Restriction Guideline"}
         </h1>
       </div>
 
@@ -379,7 +431,7 @@ export default function NewRestrictionForm() {
       >
         <button
           disabled={!canSubmit}
-          onClick={() => canSubmit && setConfirmOpen(true)}
+          onClick={() => canSubmit && (mode === "edit" ? handleSaveEdit() : setConfirmOpen(true))}
           className="px-5 h-9 rounded text-[14px]"
           style={
             canSubmit
@@ -387,7 +439,7 @@ export default function NewRestrictionForm() {
               : { backgroundColor: "hsl(0 0% 93%)", color: "hsl(0 0% 62%)", cursor: "not-allowed", fontWeight: 200 }
           }
         >
-          Create
+          {mode === "edit" ? "Save Changes" : "Create"}
         </button>
         <Link
           href="/restrictions"
@@ -434,7 +486,36 @@ export default function NewRestrictionForm() {
           restrictionSummary={buildRestrictionSummary(checkedRestrictions, restrictionValues)}
           properties={impactedProperties}
           onCancel={() => setConfirmOpen(false)}
-          onConfirm={() => setConfirmOpen(false)}
+          onConfirm={() => {
+            let segment: string;
+            let roomType: string;
+            if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
+            else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
+            else { segment = "Property"; roomType = strategyForValue || "All Room Types"; }
+
+            const restrictions: GuidelineRule["restrictions"] = [];
+            for (const r of RESTRICTIONS) {
+              if (r.hasValue && restrictionValues[r.key]) restrictions.push({ type: r.key, value: parseInt(restrictionValues[r.key]) });
+              else if (!r.hasValue && checkedRestrictions[r.key]) restrictions.push({ type: r.key });
+            }
+
+            const now = new Date();
+            const dateStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
+
+            addRule({
+              id: String(Date.now()),
+              name,
+              hotelGroup,
+              segment,
+              roomType,
+              restrictions,
+              stayDate: buildStayDateSummary(stayDateConditions, stayDateRanges, seasonalRanges, stayDateDays) || "Everyday",
+              criteria: criteriaConditions.length > 0 ? criteriaConditions.join(", ") : "Everyday",
+              created: `You at ${dateStr}`,
+              active: true,
+            });
+            router.push("/restrictions");
+          }}
         />
       )}
     </div>
