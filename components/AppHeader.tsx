@@ -283,21 +283,44 @@ export default function AppHeader({
             {settingsOpen && (
               <div
                 className="absolute right-0 top-9 z-50 rounded shadow-lg py-1"
-                style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, minWidth: "200px" }}
+                style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, minWidth: "240px" }}
               >
                 <p
                   className="px-3 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-widest"
                   style={{ color: colors.textSecondary }}
                 >
-                  Design Alts
+                  MLP Version
                 </p>
                 <Link
-                  href="/restrictions-v2"
+                  href="/restrictions-mlp"
                   onClick={() => setSettingsOpen(false)}
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
                 >
-                  Alternative Restriction Guidelines
+                  Restriction Guidelines (MLP)
+                </Link>
+                <Link
+                  href="/restriction-strategy-mlp"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
+                  style={{ color: colors.primary }}
+                >
+                  Restriction Strategy (MLP)
+                </Link>
+                <div className="mx-3 my-1 border-t" style={{ borderColor: colors.border }} />
+                <p
+                  className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-widest"
+                  style={{ color: colors.textSecondary }}
+                >
+                  Alt Version
+                </p>
+                <Link
+                  href="/restrictions-alt"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
+                  style={{ color: colors.primary }}
+                >
+                  Restriction Guidelines (Alt)
                 </Link>
               </div>
             )}

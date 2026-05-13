@@ -13,6 +13,7 @@ import {
   STRATEGY_FOR_OPTIONS,
   YIELD_SEGMENTS,
   FORM_ROOM_TYPES,
+  MOCK_PROPERTIES_BY_GROUP,
 } from "@/lib/data";
 import { useRestrictions } from "@/lib/restrictions-context";
 
@@ -47,6 +48,14 @@ function InfoIcon() {
   );
 }
 
+function ExternalLinkIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+    </svg>
+  );
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildStayDateSummary(
@@ -72,6 +81,19 @@ function buildStayDateSummary(
     }
     return c;
   }).join(" · ");
+}
+
+function buildRestrictionSummary(checked: Record<RestrictionKey, boolean>, values: Record<RestrictionKey, string>): string {
+  const labels: Record<RestrictionType, string> = {
+    CTS: "Closed to Stay", CTA: "Closed to Arrival", CTD: "Closed to Departure",
+    MinSA: "Min Stay Arrival", MinST: "Min Stay Thru", MaxSA: "Max Stay Arrival", MaxST: "Max Stay Thru",
+  };
+  const parts: string[] = [];
+  for (const r of RESTRICTIONS) {
+    if (r.hasValue && values[r.key]) parts.push(`${labels[r.key]} ${values[r.key]}`);
+    else if (!r.hasValue && checked[r.key]) parts.push(labels[r.key]);
+  }
+  return parts.join(", ") || "None";
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -125,6 +147,9 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
   const [criteriaConditions, setCriteriaConditions] = useState<string[]>([]);
   const [pendingCriteria, setPendingCriteria] = useState<string[]>([]);
   const [criteriaValues, setCriteriaValues] = useState<Record<string, CriteriaVal>>({});
+
+  // Confirm modal
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const anyRestrictionChecked = Object.values(checkedRestrictions).some(Boolean);
   const canSubmit =
@@ -207,11 +232,13 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
     : strategyFor === "Room Type" ? FORM_ROOM_TYPES
     : null;
 
+  const impactedProperties = MOCK_PROPERTIES_BY_GROUP[hotelGroup] ?? [];
+
   function handleSaveEdit() {
     if (!seed || !canSubmit) return;
     const updates = buildRuleUpdates();
     updateRule(seed.id, updates);
-    router.push("/restrictions");
+    router.push("/restrictions-mlp");
   }
 
   function buildRuleUpdates(): Partial<GuidelineRule> {
@@ -243,7 +270,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
         breadcrumb={[
           "Home",
           "Pricing & Strategy",
-          { label: "Restriction Guidelines", href: "/restrictions" },
+          { label: "Restriction Guidelines", href: "/restrictions-mlp" },
           mode === "edit" ? "Edit" : "New",
         ]}
       />
@@ -404,34 +431,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
       >
         <button
           disabled={!canSubmit}
-          onClick={() => {
-            if (!canSubmit) return;
-            if (mode === "edit") { handleSaveEdit(); return; }
-            let segment: string;
-            let roomType: string;
-            if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
-            else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
-            else { segment = "Property"; roomType = strategyForValue || "All Room Types"; }
-            const restrictions: GuidelineRule["restrictions"] = [];
-            for (const r of RESTRICTIONS) {
-              if (r.hasValue && restrictionValues[r.key]) restrictions.push({ type: r.key, value: parseInt(restrictionValues[r.key]) });
-              else if (!r.hasValue && checkedRestrictions[r.key]) restrictions.push({ type: r.key });
-            }
-            const now = new Date();
-            addRule({
-              id: String(Date.now()),
-              name,
-              hotelGroup,
-              segment,
-              roomType,
-              restrictions,
-              stayDate: buildStayDateSummary(stayDateConditions, stayDateRanges, seasonalRanges, stayDateDays) || "Everyday",
-              criteria: criteriaConditions.length > 0 ? criteriaConditions.join(", ") : "Everyday",
-              created: `You at ${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`,
-              active: true,
-            });
-            router.push("/restrictions");
-          }}
+          onClick={() => canSubmit && (mode === "edit" ? handleSaveEdit() : setConfirmOpen(true))}
           className="px-5 h-9 rounded text-[14px]"
           style={
             canSubmit
@@ -442,7 +442,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
           {mode === "edit" ? "Save Changes" : "Create"}
         </button>
         <Link
-          href="/restrictions"
+          href="/restrictions-mlp"
           className="px-5 h-9 flex items-center rounded text-[14px]"
           style={{ backgroundColor: colors.white, border: `1px solid ${colors.primary}`, color: colors.primary, fontWeight: 200, boxShadow: "0px 3px 1px -2px rgba(0,0,0,0.2),0px 2px 2px 0px rgba(0,0,0,0.14),0px 1px 5px 0px rgba(0,0,0,0.12)" }}
         >
@@ -474,6 +474,50 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
         onAdd={confirmCriteria}
       />
 
+      {/* Confirmation modal */}
+      {confirmOpen && (
+        <ConfirmationModal
+          name={name}
+          hotelGroup={hotelGroup}
+          stayDateSummary={buildStayDateSummary(stayDateConditions, stayDateRanges, seasonalRanges, stayDateDays)}
+          criteriaSummary={criteriaConditions.length === 0 ? "Always" : criteriaConditions.join(", ")}
+          strategyFor={strategyFor}
+          strategyForValue={strategyForValue}
+          restrictionSummary={buildRestrictionSummary(checkedRestrictions, restrictionValues)}
+          properties={impactedProperties}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={() => {
+            let segment: string;
+            let roomType: string;
+            if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
+            else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
+            else { segment = "Property"; roomType = strategyForValue || "All Room Types"; }
+
+            const restrictions: GuidelineRule["restrictions"] = [];
+            for (const r of RESTRICTIONS) {
+              if (r.hasValue && restrictionValues[r.key]) restrictions.push({ type: r.key, value: parseInt(restrictionValues[r.key]) });
+              else if (!r.hasValue && checkedRestrictions[r.key]) restrictions.push({ type: r.key });
+            }
+
+            const now = new Date();
+            const dateStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
+
+            addRule({
+              id: String(Date.now()),
+              name,
+              hotelGroup,
+              segment,
+              roomType,
+              restrictions,
+              stayDate: buildStayDateSummary(stayDateConditions, stayDateRanges, seasonalRanges, stayDateDays) || "Everyday",
+              criteria: criteriaConditions.length > 0 ? criteriaConditions.join(", ") : "Everyday",
+              created: `You at ${dateStr}`,
+              active: true,
+            });
+            router.push("/restrictions-mlp");
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -661,3 +705,126 @@ function ConditionModal({ open, title, options, pending, disabledOptions, onTogg
   );
 }
 
+function ConfirmationModal({ name, hotelGroup, stayDateSummary, criteriaSummary, strategyFor, strategyForValue, restrictionSummary, properties, onCancel, onConfirm }: {
+  name: string; hotelGroup: string; stayDateSummary: string; criteriaSummary: string;
+  strategyFor: string; strategyForValue: string; restrictionSummary: string;
+  properties: { name: string; existingStrategies: number }[];
+  onCancel: () => void; onConfirm: () => void;
+}) {
+  const chipIsProperty = strategyFor === "Property";
+  const strategyLabel = strategyForValue ? `${strategyFor} — ${strategyForValue}` : strategyFor;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.5)" }} onClick={onCancel}>
+      <div
+        className="bg-white rounded-lg shadow-2xl w-full mx-6 flex flex-col"
+        style={{ maxWidth: "560px", maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4">
+          <h2 className="text-[20px] font-bold" style={{ color: colors.textPrimary }}>Review &amp; Create</h2>
+          <button onClick={onCancel} style={{ color: colors.textSecondary }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-5 flex flex-col gap-5">
+
+          {/* Guideline summary — styled like a GuidelineCard */}
+          <div>
+            <p className="text-[12px] font-bold mb-2" style={{ color: colors.textSecondary }}>Guideline</p>
+            <div className="rounded" style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}`, boxShadow: "0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06)" }}>
+              {/* Card top */}
+              <div className="flex items-center gap-2 px-4 pt-4 pb-2 flex-wrap">
+                <span
+                  className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
+                  style={chipIsProperty
+                    ? { backgroundColor: colors.chipProperty, color: colors.primary }
+                    : { backgroundColor: colors.chipSegment, color: colors.textPrimary }}
+                >
+                  {strategyFor}
+                </span>
+                {strategyForValue && (
+                  <span
+                    className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
+                    style={{ backgroundColor: colors.chipSegment, color: colors.textPrimary }}
+                  >
+                    {strategyForValue}
+                  </span>
+                )}
+                <span className="text-[15px] font-bold" style={{ color: colors.textPrimary }}>{name}</span>
+              </div>
+              <div className="px-4 pb-3">
+                <p className="text-[13px]" style={{ color: colors.textSecondary }}>{hotelGroup} — {restrictionSummary}</p>
+              </div>
+              <div className="border-t mx-4" style={{ borderColor: colors.border }} />
+              <div className="px-4 py-3 flex flex-col gap-1.5">
+                <ConfirmDetailRow label="Stay Date" value={stayDateSummary} />
+                <ConfirmDetailRow label="Criteria" value={criteriaSummary} />
+                <ConfirmDetailRow label="Strategy For" value={strategyLabel} />
+              </div>
+            </div>
+          </div>
+
+          {/* Impacted properties — bordered scrollable list */}
+          <div>
+            <p className="text-[12px] font-bold mb-2" style={{ color: colors.textSecondary }}>
+              Impacted Properties
+              <span className="ml-1.5 normal-case font-normal" style={{ color: colors.textDisabled }}>({properties.length} in {hotelGroup})</span>
+            </p>
+            <div className="rounded overflow-hidden" style={{ border: `1px solid ${colors.primary}` }}>
+              <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                {properties.length === 0 ? (
+                  <p className="px-4 py-3 text-[13px]" style={{ color: colors.textDisabled }}>No properties found for this hotel group.</p>
+                ) : (
+                  properties.map((p, i) => (
+                    <div
+                      key={p.name}
+                      className="flex items-center justify-between px-4 py-2.5"
+                      style={{ borderBottom: i < properties.length - 1 ? `1px solid ${colors.border}` : undefined }}
+                    >
+                      <span className="text-[13px]" style={{ color: colors.textPrimary }}>{p.name}</span>
+                      <button
+                        className="inline-flex items-center gap-1.5 text-[12px] hover:underline shrink-0"
+                        style={{ color: p.existingStrategies > 0 ? colors.primary : colors.textDisabled }}
+                      >
+                        <ExternalLinkIcon />
+                        {p.existingStrategies > 0
+                          ? `${p.existingStrategies} ${p.existingStrategies === 1 ? "strategy" : "strategies"} already`
+                          : "No strategies"}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-4 px-6 py-4 border-t" style={{ borderColor: colors.border }}>
+          <button onClick={onCancel} className="text-[13px] font-semibold" style={{ color: colors.primary }}>
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-5 h-9 rounded text-[13px] font-semibold"
+            style={{ backgroundColor: colors.primary, color: colors.white, boxShadow: "0px 3px 1px -2px rgba(0,0,0,0.2),0px 2px 2px 0px rgba(0,0,0,0.14),0px 1px 5px 0px rgba(0,0,0,0.12)" }}
+          >
+            Create Guideline
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline gap-1">
+      <span className="text-[12px] shrink-0 text-right" style={{ color: colors.textDisabled, width: "76px" }}>{label}:</span>
+      <span className="text-[13px]" style={{ color: colors.textPrimary }}>{value}</span>
+    </div>
+  );
+}
