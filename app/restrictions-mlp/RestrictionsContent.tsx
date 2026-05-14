@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { colors } from "@/lib/tokens";
 import type { RestrictionType, GuidelineRule } from "@/lib/types";
 import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES } from "@/lib/data";
@@ -140,7 +141,10 @@ function InfoTooltip({ text }: { text: string }) {
 
 export default function RestrictionsContent() {
   const { rules, ruleStates, toggleRule, toast, clearToast } = useRestrictions();
-  const [selectedGroup, setSelectedGroup] = useState<string>(HOTEL_GROUPS[0]);
+  const searchParams = useSearchParams();
+  const groupParam = searchParams.get("group");
+  const initialGroup = HOTEL_GROUPS.includes(groupParam ?? "") ? groupParam! : HOTEL_GROUPS[0];
+  const [selectedGroup, setSelectedGroup] = useState<string>(initialGroup);
   const [propertySelected, setPropertySelected] = useState(true);
   const [activeSegments, setActiveSegments] = useState<string[]>(SEGMENTS);
   const [activeRoomTypes, setActiveRoomTypes] = useState<string[]>(ROOM_TYPES);

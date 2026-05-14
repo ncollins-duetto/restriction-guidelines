@@ -952,11 +952,15 @@ export default function NewRestrictionV1Page() {
 
   function handleNext() {
     if (step < 3) { setStep(s => s + 1); return; }
+    // The list page filters by a single segment string and single roomType string,
+    // so store the first selected value rather than a joined list.
     const segment = strategyFor === "Yield Segments"
-      ? (selectedSegments.join(", ") || "OTA - Transient")
+      ? (selectedSegments[0] ?? "OTA - Transient")
+      : strategyFor === "Room Type"
+      ? (selectedSegments[0] ?? "OTA - Transient")
       : "Property";
     const roomType = strategyFor === "Room Type"
-      ? (selectedRoomTypes.join(", ") || "All Room Types")
+      ? (selectedRoomTypes[0] ?? "All Room Types")
       : "All Room Types";
     const restrictions: GuidelineRule["restrictions"] = [];
     for (const r of RESTRICTIONS) {
@@ -975,7 +979,7 @@ export default function NewRestrictionV1Page() {
       created: `You at ${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`,
       active: true,
     });
-    router.push("/restrictions-mlp");
+    router.push(`/restrictions-mlp?group=${encodeURIComponent(hotelGroup)}`);
   }
 
   const breadcrumb = [
