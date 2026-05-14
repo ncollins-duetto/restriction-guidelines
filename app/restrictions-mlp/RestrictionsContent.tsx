@@ -234,7 +234,7 @@ export default function RestrictionsContent() {
             Download for All Groups
           </button>
           <Link
-            href={`/restrictions-mlp/new?group=${encodeURIComponent(selectedGroup)}`}
+            href="/restrictions-mlp/new-v1"
             className="flex items-center gap-1.5 px-4 h-8 rounded text-[13px] font-bold"
             style={{ backgroundColor: colors.primary, color: colors.white }}
           >
