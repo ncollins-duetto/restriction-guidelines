@@ -252,7 +252,7 @@ export default function RestrictionsContent() {
 
           {/* Hotel Group */}
           <div className="mb-6">
-            <p className="text-[13px] font-bold mb-1.5" style={{ color: colors.textPrimary }}>
+            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
               Hotel Group
             </p>
             <div className="relative">
@@ -281,7 +281,7 @@ export default function RestrictionsContent() {
 
           {/* Property */}
           <div className="mb-6">
-            <p className="text-[13px] font-bold mb-1.5" style={{ color: colors.textPrimary }}>
+            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
               Property
             </p>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -297,7 +297,7 @@ export default function RestrictionsContent() {
 
           {/* Segments */}
           <div className="mb-6">
-            <p className="text-[13px] font-bold mb-1.5" style={{ color: colors.textPrimary }}>
+            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
               Segments
             </p>
             <button
@@ -333,7 +333,7 @@ export default function RestrictionsContent() {
 
           {/* Room Type */}
           <div className="mb-6">
-            <p className="text-[13px] font-bold mb-1.5" style={{ color: colors.textPrimary }}>
+            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
               Room Type
             </p>
             <button
@@ -369,7 +369,7 @@ export default function RestrictionsContent() {
 
           {/* Status */}
           <div>
-            <p className="text-[13px] font-bold mb-1.5" style={{ color: colors.textPrimary }}>
+            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
               Status
             </p>
             <div className="flex flex-col gap-1.5">

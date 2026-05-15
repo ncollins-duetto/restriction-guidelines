@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, createContext, useContext } from "react";
 import { useRouter } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import { colors } from "@/lib/tokens";
-import { RESTRICTIONS, HOTEL_GROUPS, YIELD_SEGMENTS, FORM_ROOM_TYPES } from "@/lib/data";
+import { RESTRICTIONS, HOTEL_GROUPS, YIELD_SEGMENTS, FORM_ROOM_TYPES, MOCK_PROPERTIES_BY_GROUP } from "@/lib/data";
 import { useRestrictions } from "@/lib/restrictions-context";
 import type { RestrictionType, GuidelineRule } from "@/lib/types";
 
@@ -385,6 +385,138 @@ function StepIndicator({ step }: { step: number }) {
   );
 }
 
+// ─── HotelList ───────────────────────────────────────────────────────────────
+
+function HotelList({ group }: { group: string }) {
+  const [open, setOpen] = useState(false);
+  const hotels = MOCK_PROPERTIES_BY_GROUP[group] ?? [];
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen(p => !p)}
+        className="flex items-center gap-0.5 text-[12px] hover:underline"
+        style={{ color: colors.primary }}
+      >
+        {open ? "Hide hotels" : `Show hotels (${hotels.length})`}
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="currentColor"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }}
+        >
+          <path d="M7 10l5 5 5-5H7z" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          className="mt-2 rounded overflow-hidden"
+          style={{ border: `1px solid ${colors.border}`, maxWidth: DROPDOWN_MAX_WIDTH }}
+        >
+          {hotels.map((h, i) => (
+            <div
+              key={h.name}
+              className="px-3 py-2 text-[13px]"
+              style={{
+                color: colors.textPrimary,
+                borderBottom: i < hotels.length - 1 ? `1px solid ${colors.border}` : undefined,
+                backgroundColor: colors.white,
+              }}
+            >
+              {h.name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── HotelGroupSelect ────────────────────────────────────────────────────────
+
+function HotelGroupSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const hotelCount = (MOCK_PROPERTIES_BY_GROUP[value] ?? []).length;
+
+  return (
+    <div ref={ref} className="relative" style={{ maxWidth: DROPDOWN_MAX_WIDTH }}>
+      <button
+        type="button"
+        onClick={() => setOpen(p => !p)}
+        className="flex items-center justify-between w-full px-3 rounded border text-left"
+        style={{
+          minHeight: 44,
+          borderColor: open ? colors.primary : colors.borderSubtle,
+          backgroundColor: colors.white,
+          outline: "none",
+        }}
+      >
+        <span className="flex flex-col py-1.5">
+          <span className="text-[13px] leading-tight" style={{ color: value ? colors.textPrimary : colors.textDisabled }}>
+            {value || "Select a group…"}
+          </span>
+          {value && (
+            <span className="text-[11px] mt-0.5 leading-tight" style={{ color: colors.textDisabled }}>
+              {hotelCount} {hotelCount === 1 ? "hotel" : "hotels"}
+            </span>
+          )}
+        </span>
+        <svg
+          width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+          className="shrink-0 ml-2"
+          style={{
+            color: colors.textSecondary,
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 150ms",
+          }}
+        >
+          <path d="M7 10l5 5 5-5H7z" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 z-50 w-full rounded shadow-lg py-1"
+          style={{ top: "calc(100% + 2px)", backgroundColor: colors.white, border: `1px solid ${colors.border}` }}
+        >
+          {HOTEL_GROUPS.map(g => {
+            const count = (MOCK_PROPERTIES_BY_GROUP[g] ?? []).length;
+            const selected = g === value;
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => { onChange(g); setOpen(false); }}
+                className="flex flex-col w-full text-left px-3 py-2"
+                style={{ backgroundColor: selected ? colors.primarySubtle : "transparent" }}
+                onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.backgroundColor = colors.pageBg; }}
+                onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent"; }}
+              >
+                <span className="text-[13px] leading-tight" style={{ color: selected ? colors.primary : colors.textPrimary }}>
+                  {g}
+                </span>
+                <span className="text-[11px] mt-0.5" style={{ color: selected ? colors.primary : colors.textDisabled }}>
+                  {count} {count === 1 ? "hotel" : "hotels"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Phase 1: New Guideline ───────────────────────────────────────────────────
 
 function Phase1({ name, setName, hotelGroup, setHotelGroup, strategyFor, setStrategyFor, selectedSegments, setSelectedSegments, selectedRoomTypes, setSelectedRoomTypes, rules, useTemplate, setUseTemplate, onTemplateSelect }: {
@@ -428,16 +560,8 @@ function Phase1({ name, setName, hotelGroup, setHotelGroup, strategyFor, setStra
       </div>
 
       <Field label="Hotel group">
-        <div className="relative" style={{ maxWidth: DROPDOWN_MAX_WIDTH }}>
-          <select value={hotelGroup} onChange={e => setHotelGroup(e.target.value)}
-            className="h-8 pl-3 pr-8 rounded border w-full text-[13px] outline-none appearance-none"
-            style={{ borderColor: colors.borderSubtle, color: colors.textPrimary, backgroundColor: colors.white }}>
-            {HOTEL_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2" style={{ color: colors.textSecondary }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5H7z"/></svg>
-          </span>
-        </div>
+        <HotelGroupSelect value={hotelGroup} onChange={setHotelGroup} />
+        <HotelList group={hotelGroup} />
       </Field>
 
       <Field label="Strategy for">
