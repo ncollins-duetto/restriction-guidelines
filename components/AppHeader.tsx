@@ -33,7 +33,7 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
     header: "Configure",
     items: [
       { label: "Pricing Strategy" },
-      { label: "Restriction Strategy", href: "/restriction-strategy-mlp" },
+      { label: "Restriction Strategy", href: "/restriction-strategy" },
       { label: "Forecast Rules" },
       { label: "Autopilot" },
       { label: "Min/Max Bounds" },
