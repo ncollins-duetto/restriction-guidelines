@@ -33,7 +33,7 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
     header: "Configure",
     items: [
       { label: "Pricing Strategy" },
-      { label: "Restriction Strategy", href: "/restriction-strategy" },
+      { label: "Restriction Strategy", href: "/restriction-strategy-mlp" },
       { label: "Forecast Rules" },
       { label: "Autopilot" },
       { label: "Min/Max Bounds" },
@@ -309,12 +309,12 @@ export default function AppHeader({
                   Restriction Guidelines (MLP)
                 </Link>
                 <Link
-                  href="/restriction-strategy-mlp"
+                  href="/restriction-strategy"
                   onClick={() => setSettingsOpen(false)}
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
                 >
-                  Restriction Strategy (MLP)
+                  Restriction Strategy (old)
                 </Link>
                 <div className="mx-3 my-1 border-t" style={{ borderColor: colors.border }} />
                 <p
