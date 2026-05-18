@@ -13,6 +13,7 @@ import {
   STRATEGY_FOR_OPTIONS,
   YIELD_SEGMENTS,
   FORM_ROOM_TYPES,
+  MOCK_SUB_RATES,
 } from "@/lib/data";
 import { useRestrictions } from "@/lib/restrictions-context";
 
@@ -204,6 +205,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
 
   const strategySecondaryOptions =
     strategyFor === "Yield Segments" ? YIELD_SEGMENTS
+    : strategyFor === "Sub Rates" ? MOCK_SUB_RATES
     : strategyFor === "Room Type" ? FORM_ROOM_TYPES
     : null;
 
@@ -211,7 +213,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
     if (!seed || !canSubmit) return;
     const updates = buildRuleUpdates();
     updateRule(seed.id, updates);
-    router.push("/restrictions");
+    router.push("/restrictions-mlp");
   }
 
   function buildRuleUpdates(): Partial<GuidelineRule> {
@@ -219,6 +221,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
     let roomType: string;
     if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
     else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
+    else if (strategyFor === "Sub Rates") { segment = strategyForValue || "Sub Rates"; roomType = "All Room Types"; }
     else { segment = seed?.segment ?? "Property"; roomType = strategyForValue || "All Room Types"; }
 
     const restrictions: GuidelineRule["restrictions"] = [];
@@ -243,7 +246,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
         breadcrumb={[
           "Home",
           "Pricing & Strategy",
-          { label: "Restriction Guidelines", href: "/restrictions" },
+          { label: "Restriction Guidelines", href: "/restrictions-mlp" },
           mode === "edit" ? "Edit" : "New",
         ]}
       />
@@ -411,6 +414,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
             let roomType: string;
             if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
             else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
+            else if (strategyFor === "Sub Rates") { segment = strategyForValue || "Sub Rates"; roomType = "All Room Types"; }
             else { segment = "Property"; roomType = strategyForValue || "All Room Types"; }
             const restrictions: GuidelineRule["restrictions"] = [];
             for (const r of RESTRICTIONS) {
@@ -430,7 +434,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
               created: `You at ${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`,
               active: true,
             });
-            router.push("/restrictions");
+            router.push("/restrictions-mlp");
           }}
           className="px-5 h-9 rounded text-[14px]"
           style={

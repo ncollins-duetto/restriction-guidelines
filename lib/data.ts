@@ -12,7 +12,14 @@ export const NEW_FORM_HOTEL_GROUPS = ["00327803", "B&B Hotels", "Luxury Collecti
 
 export const SEGMENTS = ["OTA - Transient", "Corporate", "Leisure"];
 export const ROOM_TYPES = ["All Room Types", "Standard", "Deluxe", "Suite"];
-export const STRATEGY_FOR_OPTIONS = ["Property", "Yield Segments", "Room Type"];
+export const STRATEGY_FOR_OPTIONS = ["Property", "Yield Segments", "Sub Rates", "Room Type"];
+export const MOCK_SUB_RATES = [
+  "Advance Purchase 7",
+  "Advance Purchase 14",
+  "Non-Refundable",
+  "Breakfast Package",
+  "Weekend Escape",
+];
 export const YIELD_SEGMENTS = ["OTA - Transient", "Corporate", "Leisure", "Government", "Group"];
 export const FORM_ROOM_TYPES = ["All Room Types", "Standard", "Deluxe", "Suite", "Junior Suite", "Penthouse"];
 
