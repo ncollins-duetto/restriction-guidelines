@@ -153,8 +153,8 @@ function MultiSelect({ options, selected, onChange, placeholder, allLabel }: {
 
 function buildStayDateSummary(
   conditions: string[],
-  stayDateRanges: Record<string, { start: string; end: string }>,
-  seasonalRanges: Record<string, SeasonalRange>,
+  stayDateRanges: Record<string, { start: string; end: string }[]>,
+  seasonalRanges: Record<string, SeasonalRange[]>,
   stayDateDays: Record<string, Record<DayKey, boolean>>
 ): string {
   if (conditions.length === 0) return "Everyday";
@@ -165,12 +165,13 @@ function buildStayDateSummary(
       return active.length === 7 ? "All days" : active.join(", ");
     }
     if (c === "Active Date Range") {
-      const r = stayDateRanges[c];
-      return r?.start && r?.end ? `${r.start} – ${r.end}` : "Date range";
+      const ranges = stayDateRanges[c] ?? [];
+      const filled = ranges.filter(r => r.start && r.end).map(r => `${r.start} – ${r.end}`);
+      return filled.length ? filled.join(", ") : "Date range";
     }
     if (c === "Seasonal Date Range") {
-      const r = seasonalRanges[c] ?? DEFAULT_SEASONAL;
-      return `${r.startMonth} ${r.startDay} – ${r.endMonth} ${r.endDay} (annually)`;
+      const ranges = seasonalRanges[c] ?? [DEFAULT_SEASONAL];
+      return ranges.map(r => `${r.startMonth} ${r.startDay} – ${r.endMonth} ${r.endDay}`).join(", ") + " (annually)";
     }
     return c;
   }).join(" · ");
@@ -219,8 +220,8 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
   const [stayDateConditions, setStayDateConditions] = useState<string[]>([]);
   const [pendingStayDates, setPendingStayDates] = useState<string[]>([]);
   const [stayDateDays, setStayDateDays] = useState<Record<string, Record<DayKey, boolean>>>({});
-  const [stayDateRanges, setStayDateRanges] = useState<Record<string, { start: string; end: string }>>({});
-  const [seasonalRanges, setSeasonalRanges] = useState<Record<string, SeasonalRange>>({});
+  const [stayDateRanges, setStayDateRanges] = useState<Record<string, { start: string; end: string }[]>>({});
+  const [seasonalRanges, setSeasonalRanges] = useState<Record<string, SeasonalRange[]>>({});
 
   // Criteria
   const [criteriaModalOpen, setCriteriaModalOpen] = useState(false);
@@ -260,8 +261,8 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
     const newSeasonal = { ...seasonalRanges };
     for (const c of pendingStayDates) {
       if (c === "Active Day of Week" && !newDays[c]) newDays[c] = { ...DEFAULT_DAYS };
-      else if (c === "Active Date Range" && !newRanges[c]) newRanges[c] = { start: "", end: "" };
-      else if (c === "Seasonal Date Range" && !newSeasonal[c]) newSeasonal[c] = { ...DEFAULT_SEASONAL };
+      else if (c === "Active Date Range" && !newRanges[c]) newRanges[c] = [{ start: "", end: "" }];
+      else if (c === "Seasonal Date Range" && !newSeasonal[c]) newSeasonal[c] = [{ ...DEFAULT_SEASONAL }];
     }
     setStayDateDays(newDays);
     setStayDateRanges(newRanges);
@@ -413,32 +414,102 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
               <span className="text-[17px] font-bold" style={{ color: colors.textPrimary }}>Everyday</span>
             ) : (
               <div className="flex flex-col gap-4">
-                {stayDateConditions.map((cond) => (
-                  <div key={cond} className="flex items-center gap-3" style={{ flexWrap: "nowrap" }}>
-                    <ConditionChip label={cond} onRemove={() => removeStayDate(cond)} />
-                    <span className="text-[13px] shrink-0" style={{ color: colors.textSecondary }}>is</span>
-                    {cond === "Active Day of Week" && (
-                      <DayOfWeekControl
-                        days={stayDateDays[cond] ?? { ...DEFAULT_DAYS }}
-                        onChange={(d) => setStayDateDays((prev) => ({ ...prev, [cond]: d }))}
-                      />
-                    )}
-                    {cond === "Active Date Range" && (
-                      <DateRangeControl
-                        start={stayDateRanges[cond]?.start ?? ""}
-                        end={stayDateRanges[cond]?.end ?? ""}
-                        onStartChange={(v) => setStayDateRanges((prev) => ({ ...prev, [cond]: { ...prev[cond], start: v } }))}
-                        onEndChange={(v) => setStayDateRanges((prev) => ({ ...prev, [cond]: { ...prev[cond], end: v } }))}
-                      />
-                    )}
-                    {cond === "Seasonal Date Range" && (
-                      <SeasonalDateRangeControl
-                        val={seasonalRanges[cond] ?? { ...DEFAULT_SEASONAL }}
-                        onChange={(v) => setSeasonalRanges((prev) => ({ ...prev, [cond]: v }))}
-                      />
-                    )}
-                  </div>
-                ))}
+                {stayDateConditions.map((cond) => {
+                  const isMultiRange = cond === "Active Date Range" || cond === "Seasonal Date Range";
+                  const dateRanges = stayDateRanges[cond] ?? [{ start: "", end: "" }];
+                  const seasRanges = seasonalRanges[cond] ?? [{ ...DEFAULT_SEASONAL }];
+                  const rangeCount = cond === "Active Date Range" ? dateRanges.length : seasRanges.length;
+
+                  if (isMultiRange) {
+                    return (
+                      <div key={cond} className="flex flex-col gap-2">
+                        {(cond === "Active Date Range" ? dateRanges : seasRanges).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3" style={{ flexWrap: "nowrap" }}>
+                            {i === 0 ? (
+                              <ConditionChip label={cond} onRemove={() => removeStayDate(cond)} />
+                            ) : (
+                              <div className="shrink-0" style={{ width: 260 }} />
+                            )}
+                            <span className="text-[13px] shrink-0 w-6 text-right" style={{ color: colors.textSecondary }}>
+                              {i === 0 ? "is" : "and"}
+                            </span>
+                            {cond === "Active Date Range" ? (
+                              <DateRangeControl
+                                start={dateRanges[i]?.start ?? ""}
+                                end={dateRanges[i]?.end ?? ""}
+                                onStartChange={(v) => setStayDateRanges((prev) => {
+                                  const arr = [...(prev[cond] ?? [])];
+                                  arr[i] = { ...arr[i], start: v };
+                                  return { ...prev, [cond]: arr };
+                                })}
+                                onEndChange={(v) => setStayDateRanges((prev) => {
+                                  const arr = [...(prev[cond] ?? [])];
+                                  arr[i] = { ...arr[i], end: v };
+                                  return { ...prev, [cond]: arr };
+                                })}
+                              />
+                            ) : (
+                              <SeasonalDateRangeControl
+                                val={seasRanges[i] ?? { ...DEFAULT_SEASONAL }}
+                                onChange={(v) => setSeasonalRanges((prev) => {
+                                  const arr = [...(prev[cond] ?? [])];
+                                  arr[i] = v;
+                                  return { ...prev, [cond]: arr };
+                                })}
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (rangeCount === 1) { removeStayDate(cond); return; }
+                                if (cond === "Active Date Range") {
+                                  setStayDateRanges((prev) => ({ ...prev, [cond]: prev[cond].filter((_, j) => j !== i) }));
+                                } else {
+                                  setSeasonalRanges((prev) => ({ ...prev, [cond]: prev[cond].filter((_, j) => j !== i) }));
+                                }
+                              }}
+                              className="shrink-0 flex items-center justify-center w-7 h-7 rounded hover:bg-gray-100 transition-colors"
+                              style={{ color: colors.textSecondary }}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex" style={{ paddingLeft: 272 }}>
+                          <button
+                            type="button"
+                            className="text-[12px] hover:underline"
+                            style={{ color: colors.primary }}
+                            onClick={() => {
+                              if (cond === "Active Date Range") {
+                                setStayDateRanges((prev) => ({ ...prev, [cond]: [...(prev[cond] ?? []), { start: "", end: "" }] }));
+                              } else {
+                                setSeasonalRanges((prev) => ({ ...prev, [cond]: [...(prev[cond] ?? []), { ...DEFAULT_SEASONAL }] }));
+                              }
+                            }}
+                          >
+                            + Add new range
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={cond} className="flex items-center gap-3" style={{ flexWrap: "nowrap" }}>
+                      <ConditionChip label={cond} onRemove={() => removeStayDate(cond)} />
+                      <span className="text-[13px] shrink-0" style={{ color: colors.textSecondary }}>is</span>
+                      {cond === "Active Day of Week" && (
+                        <DayOfWeekControl
+                          days={stayDateDays[cond] ?? { ...DEFAULT_DAYS }}
+                          onChange={(d) => setStayDateDays((prev) => ({ ...prev, [cond]: d }))}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
