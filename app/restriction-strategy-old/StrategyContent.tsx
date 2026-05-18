@@ -25,7 +25,7 @@ const MOCK_STRATEGY_RULES: StrategyRule[] = [
     locked: false,
   },
   {
-    id: "3",
+    id: "2",
     name: "Holiday Closure",
     hotelGroup: "Central-North Europe",
     segment: "Property",
@@ -36,7 +36,6 @@ const MOCK_STRATEGY_RULES: StrategyRule[] = [
     created: "Marcus Weber at 4/9/2026",
     active: true,
     locked: true,
-    guidelineNote: true,
   },
 ];
 
@@ -175,7 +174,9 @@ function StrategyCard({
       className="rounded group"
       style={{
         backgroundColor: locked ? "#EBEBEB" : colors.white,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
+        boxShadow: locked
+          ? "none"
+          : "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
         border: locked ? `1px solid ${colors.border}` : "none",
       }}
     >

@@ -1,7 +1,7 @@
 import AppHeader from "@/components/AppHeader";
 import StrategyContent from "./StrategyContent";
 
-export default function RestrictionStrategyMlpPage() {
+export default function RestrictionStrategyPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <AppHeader
