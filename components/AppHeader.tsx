@@ -172,7 +172,7 @@ function MegaMenu({ columns, onClose }: { columns: MegaMenuColumn[]; onClose: ()
                   key={item.label}
                   href={item.href}
                   onClick={onClose}
-                  className="text-[13px] py-0.5 font-bold"
+                  className="text-[13px] py-0.5"
                   style={{ color: colors.primary }}
                 >
                   {item.label}

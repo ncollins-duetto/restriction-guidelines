@@ -175,9 +175,7 @@ function StrategyCard({
       className="rounded group"
       style={{
         backgroundColor: locked ? "#EBEBEB" : colors.white,
-        boxShadow: locked
-          ? "none"
-          : "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
         border: locked ? `1px solid ${colors.border}` : "none",
       }}
     >
