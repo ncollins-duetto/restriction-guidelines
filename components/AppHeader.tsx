@@ -44,7 +44,7 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
     header: "Multi-Property",
     items: [
       { label: "Rate Guidelines" },
-      { label: "Restriction Guidelines", href: "/restrictions" },
+      { label: "Restriction Guidelines", href: "/restrictions-mlp" },
       { label: "Hotel Groups" },
       { label: "Sub Rates" },
     ],
@@ -298,30 +298,30 @@ export default function AppHeader({
                   className="px-3 pt-1.5 pb-1 text-[10px] font-bold uppercase tracking-widest"
                   style={{ color: colors.textSecondary }}
                 >
-                  MLP Version
+                  Old Versions
                 </p>
                 <Link
-                  href="/restrictions-mlp"
+                  href="/restrictions"
                   onClick={() => setSettingsOpen(false)}
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
                 >
-                  Restriction Guidelines (MLP)
+                  List View (Single Group)
                 </Link>
                 <Link
-                  href="/restriction-strategy"
+                  href="/restrictions/new"
                   onClick={() => setSettingsOpen(false)}
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
                 >
-                  Restriction Strategy (old)
+                  Create Guideline Form (Old)
                 </Link>
                 <div className="mx-3 my-1 border-t" style={{ borderColor: colors.border }} />
                 <p
                   className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-widest"
                   style={{ color: colors.textSecondary }}
                 >
-                  Alt Version
+                  Alt Versions
                 </p>
                 <Link
                   href="/restrictions-alt"
@@ -329,7 +329,15 @@ export default function AppHeader({
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
                 >
-                  Restriction Guidelines (Alt)
+                  List/Table Toggle View
+                </Link>
+                <Link
+                  href="/restrictions-mlp/new-wizard"
+                  onClick={() => setSettingsOpen(false)}
+                  className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
+                  style={{ color: colors.primary }}
+                >
+                  Guideline Wizard/Stepped Form
                 </Link>
               </div>
             )}
