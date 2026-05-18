@@ -260,9 +260,25 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
 
   const strategySecondaryOptions =
     strategyFor === "Yield Segments" ? YIELD_SEGMENTS
-    : strategyFor === "Sub Rates" ? ["Advance Purchase 7", "Advance Purchase 14", "Non-Refundable", "Breakfast Package", "Weekend Escape"]
-    : strategyFor === "Room Type" ? FORM_ROOM_TYPES
+    : strategyFor === "Sub Rates" ? ["Advance Purchase 7", "Advance Purchase 14", "Non-Refundable", "Breakfast Package *", "Weekend Escape"]
+    : strategyFor === "Room Type" ? FORM_ROOM_TYPES.map(rt => rt === "Junior Suite" ? "Junior Suite *" : rt)
     : null;
+
+  // Items marked * are only available at a subset of hotels in any given group
+  const PARTIAL_SUB_RATES = new Set(["Breakfast Package *"]);
+  const PARTIAL_ROOM_TYPES = new Set(["Junior Suite *"]);
+
+  const partialCoverageWarning: string | null = (() => {
+    if (strategyFor === "Sub Rates" && strategyForValues.some(v => PARTIAL_SUB_RATES.has(v))) {
+      const partial = strategyForValues.filter(v => PARTIAL_SUB_RATES.has(v));
+      return `Not all hotels in this group offer ${partial.map(v => v.replace(" *", "")).join(", ")}. This guideline will only apply to hotels where ${partial.length === 1 ? "this sub rate is" : "these sub rates are"} available.`;
+    }
+    if (strategyFor === "Room Type" && strategyForValues.some(v => PARTIAL_ROOM_TYPES.has(v))) {
+      const partial = strategyForValues.filter(v => PARTIAL_ROOM_TYPES.has(v));
+      return `Not all hotels in this group have ${partial.map(v => v.replace(" *", "")).join(", ")}. This guideline will only apply to hotels where ${partial.length === 1 ? "this room type exists" : "these room types exist"}.`;
+    }
+    return null;
+  })();
 
   function handleSaveEdit() {
     if (!seed || !canSubmit) return;
@@ -432,6 +448,23 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
                 />
               )}
             </div>
+            {partialCoverageWarning && (
+              <div
+                className="flex items-start gap-2.5 mt-3 px-3 py-2.5 rounded"
+                style={{
+                  border: `1px solid ${colors.warningBorder}`,
+                  backgroundColor: colors.warningBg,
+                  maxWidth: 440,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 mt-0.5" style={{ color: colors.warningText }}>
+                  <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+                </svg>
+                <p className="text-[13px] leading-snug" style={{ color: colors.warningText }}>
+                  {partialCoverageWarning}
+                </p>
+              </div>
+            )}
           </FormField>
 
           <div className="border-t" style={{ borderColor: colors.border }} />

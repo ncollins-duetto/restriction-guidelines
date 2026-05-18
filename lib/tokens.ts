@@ -29,6 +29,9 @@ export const colors = {
 
   // Semantic
   error: "#D32F2F",        // semantic.error[600]
+  warningBorder: "hsl(35 90% 50%)",   // sem.warning[700]
+  warningText: "hsl(36 100% 23%)",    // sem.warning[800]
+  warningBg: "hsl(42 100% 94%)",      // sem.warning[50]
 
   // Brand
   avatar: "#FF5900",       // brand.orange[500]
