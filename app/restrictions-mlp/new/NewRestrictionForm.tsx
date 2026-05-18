@@ -205,7 +205,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
 
   const strategySecondaryOptions =
     strategyFor === "Yield Segments" ? YIELD_SEGMENTS
-    : strategyFor === "Sub Rates" ? MOCK_SUB_RATES
+    : strategyFor === "Sub Rates" ? ["Advance Purchase 7", "Advance Purchase 14", "Non-Refundable", "Breakfast Package", "Weekend Escape"]
     : strategyFor === "Room Type" ? FORM_ROOM_TYPES
     : null;
 
