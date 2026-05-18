@@ -12,7 +12,7 @@ function EditFormWrapper() {
   return <NewRestrictionForm mode="edit" seed={rule} />;
 }
 
-export default function EditRestrictionPage() {
+export default function EditRestrictionMlpPage() {
   return (
     <Suspense>
       <EditFormWrapper />

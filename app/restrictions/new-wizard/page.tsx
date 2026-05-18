@@ -1103,13 +1103,13 @@ export default function NewRestrictionV1Page() {
       created: `You at ${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`,
       active: true,
     });
-    router.push(`/restrictions-mlp?group=${encodeURIComponent(hotelGroup)}`);
+    router.push(`/restrictions?group=${encodeURIComponent(hotelGroup)}`);
   }
 
   const breadcrumb = [
     "Home",
     "Pricing & Strategy",
-    { label: "Restriction Guidelines", href: "/restrictions-mlp" },
+    { label: "Restriction Guidelines", href: "/restrictions" },
     "New guideline",
   ];
 
@@ -1169,7 +1169,7 @@ export default function NewRestrictionV1Page() {
         {/* Sticky footer */}
         <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-3 px-6 py-3 border-t"
           style={{ backgroundColor: colors.white, borderColor: colors.border }}>
-          <button type="button" onClick={() => router.push("/restrictions-mlp")}
+          <button type="button" onClick={() => router.push("/restrictions")}
             className="h-9 px-4 rounded text-[14px] hover:bg-black/5 transition-colors"
             style={{ color: colors.textSecondary }}>
             Cancel

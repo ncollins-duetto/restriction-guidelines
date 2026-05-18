@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { colors } from "@/lib/tokens";
 import type { RestrictionType, GuidelineRule } from "@/lib/types";
-import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES } from "@/lib/data";
+import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES, MOCK_PROPERTIES_BY_GROUP } from "@/lib/data";
 import { useRestrictions } from "@/lib/restrictions-context";
+import Select from "@/components/Select";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -69,9 +70,19 @@ function DownloadIcon() {
   );
 }
 
-function ChevronDownIcon() {
+function ChevronDownIcon({ rotated }: { rotated?: boolean }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      style={{
+        transform: rotated ? "rotate(-90deg)" : "rotate(0deg)",
+        transition: "transform 150ms",
+        display: "block",
+      }}
+    >
       <path d="M7 10l5 5 5-5H7z" />
     </svg>
   );
@@ -136,11 +147,48 @@ function InfoTooltip({ text }: { text: string }) {
   );
 }
 
+// ─── Collapsible filter section ───────────────────────────────────────────────
+
+function FilterSection({
+  label,
+  sectionKey,
+  collapsed,
+  onToggle,
+  children,
+}: {
+  label: string;
+  sectionKey: string;
+  collapsed: boolean;
+  onToggle: (key: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-6">
+      <button
+        onClick={() => onToggle(sectionKey)}
+        className="flex items-center justify-between w-full mb-1.5"
+      >
+        <span className="text-base font-medium" style={{ color: colors.textSecondary }}>
+          {label}
+        </span>
+        <span style={{ color: colors.textSecondary }}>
+          <ChevronDownIcon rotated={collapsed} />
+        </span>
+      </button>
+      {!collapsed && children}
+    </div>
+  );
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
+
+type SortBy = "group" | "granularity" | "alpha";
 
 export default function RestrictionsContent() {
   const { rules, ruleStates, toggleRule, toast, clearToast } = useRestrictions();
-  const [selectedGroup, setSelectedGroup] = useState<string>(HOTEL_GROUPS[0]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>(HOTEL_GROUPS);
+  const [sortBy, setSortBy] = useState<SortBy>("group");
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [propertySelected, setPropertySelected] = useState(true);
   const [activeSegments, setActiveSegments] = useState<string[]>(SEGMENTS);
   const [activeRoomTypes, setActiveRoomTypes] = useState<string[]>(ROOM_TYPES);
@@ -151,6 +199,25 @@ export default function RestrictionsContent() {
     const t = setTimeout(clearToast, 3000);
     return () => clearTimeout(t);
   }, [toast, clearToast]);
+
+  function toggleSection(key: string) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  function toggleGroup(group: string) {
+    setSelectedGroups((prev) => {
+      if (prev.includes(group)) {
+        // Prevent deselecting the last group
+        if (prev.length === 1) return prev;
+        return prev.filter((g) => g !== group);
+      }
+      return [...prev, group];
+    });
+  }
 
   function toggleSegment(seg: string) {
     setActiveSegments((prev) =>
@@ -164,30 +231,30 @@ export default function RestrictionsContent() {
     );
   }
 
-  // All rules for the selected group
-  const groupRules = rules.filter((r) => r.hotelGroup === selectedGroup);
+  // Rules scoped to selected groups
+  const visibleRules = rules.filter((r) => selectedGroups.includes(r.hotelGroup));
 
-  // Property rules: shown when property filter is selected, filtered by status
-  const propertyRules = groupRules.filter((rule) => {
-    if (rule.segment !== "Property") return false;
-    if (!propertySelected) return false;
-    if (statusFilter === "active" && !ruleStates[rule.id]) return false;
-    if (statusFilter === "inactive" && ruleStates[rule.id]) return false;
+  // Status check helper
+  function statusOk(rule: GuidelineRule) {
+    if (statusFilter === "active") return !!ruleStates[rule.id];
+    if (statusFilter === "inactive") return !ruleStates[rule.id];
     return true;
-  });
+  }
 
-  // Segment rules: filtered by segment + room type + status
-  const filteredSegmentRules = groupRules.filter((rule) => {
-    if (rule.segment === "Property") return false;
-    if (!activeSegments.includes(rule.segment)) return false;
-    if (!activeRoomTypes.includes(rule.roomType)) return false;
-    if (statusFilter === "active" && !ruleStates[rule.id]) return false;
-    if (statusFilter === "inactive" && ruleStates[rule.id]) return false;
-    return true;
-  });
+  const propertyRules = visibleRules.filter(
+    (r) => r.segment === "Property" && propertySelected && statusOk(r)
+  );
 
-  // Counts for segment filter (exclude Property rules)
-  const segmentOnlyRules = groupRules.filter((r) => r.segment !== "Property");
+  const filteredSegmentRules = visibleRules.filter(
+    (r) =>
+      r.segment !== "Property" &&
+      activeSegments.includes(r.segment) &&
+      activeRoomTypes.includes(r.roomType) &&
+      statusOk(r)
+  );
+
+  // Filter counts across all selected groups
+  const segmentOnlyRules = visibleRules.filter((r) => r.segment !== "Property");
   const segmentCounts = SEGMENTS.reduce<Record<string, number>>((acc, seg) => {
     acc[seg] = segmentOnlyRules.filter((r) => r.segment === seg).length;
     return acc;
@@ -197,19 +264,86 @@ export default function RestrictionsContent() {
     return acc;
   }, {});
 
-  // Group segment rules by segment for display
-  const groupedBySegment = SEGMENTS.reduce<Record<string, GuidelineRule[]>>((acc, seg) => {
-    acc[seg] = filteredSegmentRules.filter((r) => r.segment === seg);
-    return acc;
-  }, {});
-
   const hasAnyContent = propertyRules.length > 0 || filteredSegmentRules.length > 0;
 
+  // ─── Render helpers per sort mode ──────────────────────────────────────────
+
+  function renderByGroup() {
+    return (
+      <>
+        {HOTEL_GROUPS.filter((g) => selectedGroups.includes(g)).map((group) => {
+          const groupPropertyRules = propertyRules.filter((r) => r.hotelGroup === group);
+          const groupSegmentRules = filteredSegmentRules.filter((r) => r.hotelGroup === group);
+          if (groupPropertyRules.length === 0 && groupSegmentRules.length === 0) return null;
+          return (
+            <div key={group} className="mb-8">
+              <SectionDivider label={group} />
+              <div className="flex flex-col gap-3">
+                {groupPropertyRules.map((rule) => (
+                  <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+                ))}
+                {groupSegmentRules.map((rule) => (
+                  <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+
+  function renderByGranularity() {
+    const groupedBySegment = SEGMENTS.reduce<Record<string, GuidelineRule[]>>((acc, seg) => {
+      acc[seg] = filteredSegmentRules.filter((r) => r.segment === seg);
+      return acc;
+    }, {});
+
+    return (
+      <>
+        {propertyRules.length > 0 && (
+          <div className="mb-8">
+            <SectionDivider label="Property" />
+            <div className="flex flex-col gap-3">
+              {propertyRules.map((rule) => (
+                <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {SEGMENTS.map((seg) => {
+          const segRules = groupedBySegment[seg];
+          if (!segRules || segRules.length === 0) return null;
+          return (
+            <div key={seg} className="mb-8">
+              <SectionDivider label={seg} />
+              <div className="flex flex-col gap-3">
+                {segRules.map((rule) => (
+                  <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </>
+    );
+  }
+
+  function renderAlpha() {
+    const allRules = [...propertyRules, ...filteredSegmentRules].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+    return (
+      <div className="flex flex-col gap-3">
+        {allRules.map((rule) => (
+          <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="flex flex-col flex-1 px-6 py-5"
-      style={{ backgroundColor: colors.pageBg }}
-    >
+    <div className="flex flex-col flex-1 px-6 py-5" style={{ backgroundColor: colors.pageBg }}>
       {/* ── Title + actions row ── */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
@@ -234,7 +368,7 @@ export default function RestrictionsContent() {
             Download for All Groups
           </button>
           <Link
-            href={`/restrictions/new?group=${encodeURIComponent(selectedGroup)}`}
+            href="/restrictions/new"
             className="flex items-center gap-1.5 px-4 h-8 rounded text-[13px] font-bold"
             style={{ backgroundColor: colors.primary, color: colors.white }}
           >
@@ -247,43 +381,51 @@ export default function RestrictionsContent() {
       {/* ── Content area: filters column + cards ── */}
       <div className="flex flex-1 gap-8">
 
-        {/* Filters column — inline, no background or border */}
+        {/* ── Filters column ── */}
         <div className="shrink-0" style={{ width: "188px" }}>
 
           {/* Hotel Group */}
-          <div className="mb-6">
-            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
-              Hotel Group
-            </p>
-            <div className="relative">
-              <select
-                value={selectedGroup}
-                onChange={(e) => setSelectedGroup(e.target.value)}
-                className="h-8 pl-3 pr-8 rounded border text-[13px] outline-none appearance-none w-full"
-                style={{
-                  borderColor: colors.borderSubtle,
-                  color: colors.textPrimary,
-                  backgroundColor: colors.white,
-                }}
+          <FilterSection
+            label="Hotel Group"
+            sectionKey="hotelGroup"
+            collapsed={collapsedSections.has("hotelGroup")}
+            onToggle={toggleSection}
+          >
+            <>
+              <button
+                onClick={() =>
+                  selectedGroups.length === HOTEL_GROUPS.length
+                    ? setSelectedGroups([])
+                    : setSelectedGroups(HOTEL_GROUPS)
+                }
+                className="text-[12px] mb-2 hover:underline"
+                style={{ color: colors.primary }}
               >
+                {selectedGroups.length === HOTEL_GROUPS.length ? "Deselect All" : "Select All"}
+              </button>
+              <div className="flex flex-col gap-1.5">
                 {HOTEL_GROUPS.map((g) => (
-                  <option key={g} value={g}>{g}</option>
+                  <label key={g} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedGroups.includes(g)}
+                      onChange={() => toggleGroup(g)}
+                      className={`w-4 h-4 rounded accent-[${colors.primary}]`}
+                    />
+                    <span className="text-[13px] leading-tight" style={{ color: colors.textPrimary }}>{g}</span>
+                  </label>
                 ))}
-              </select>
-              <span
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2"
-                style={{ color: colors.textSecondary }}
-              >
-                <ChevronDownIcon />
-              </span>
-            </div>
-          </div>
+              </div>
+            </>
+          </FilterSection>
 
           {/* Property */}
-          <div className="mb-6">
-            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
-              Property
-            </p>
+          <FilterSection
+            label="Property"
+            sectionKey="property"
+            collapsed={collapsedSections.has("property")}
+            onToggle={toggleSection}
+          >
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -293,85 +435,95 @@ export default function RestrictionsContent() {
               />
               <span className="text-[13px]" style={{ color: colors.textPrimary }}>Property</span>
             </label>
-          </div>
+          </FilterSection>
 
           {/* Segments */}
-          <div className="mb-6">
-            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
-              Segments
-            </p>
-            <button
-              onClick={() =>
-                activeSegments.length === SEGMENTS.length
-                  ? setActiveSegments([])
-                  : setActiveSegments(SEGMENTS)
-              }
-              className="text-[12px] mb-2 hover:underline"
-              style={{ color: colors.primary }}
-            >
-              {activeSegments.length === SEGMENTS.length ? "Deselect All" : "Select All"}
-            </button>
-            <div className="flex flex-col gap-1.5">
-              {SEGMENTS.map((seg) => (
-                <label key={seg} className="flex items-center justify-between cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={activeSegments.includes(seg)}
-                      onChange={() => toggleSegment(seg)}
-                      className={`w-4 h-4 rounded accent-[${colors.primary}]`}
-                    />
-                    <span className="text-[13px]" style={{ color: colors.textPrimary }}>{seg}</span>
-                  </div>
-                  <span className="text-[12px]" style={{ color: colors.textDisabled }}>
-                    ({segmentCounts[seg]})
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <FilterSection
+            label="Segments"
+            sectionKey="segments"
+            collapsed={collapsedSections.has("segments")}
+            onToggle={toggleSection}
+          >
+            <>
+              <button
+                onClick={() =>
+                  activeSegments.length === SEGMENTS.length
+                    ? setActiveSegments([])
+                    : setActiveSegments(SEGMENTS)
+                }
+                className="text-[12px] mb-2 hover:underline"
+                style={{ color: colors.primary }}
+              >
+                {activeSegments.length === SEGMENTS.length ? "Deselect All" : "Select All"}
+              </button>
+              <div className="flex flex-col gap-1.5">
+                {SEGMENTS.map((seg) => (
+                  <label key={seg} className="flex items-center justify-between cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={activeSegments.includes(seg)}
+                        onChange={() => toggleSegment(seg)}
+                        className={`w-4 h-4 rounded accent-[${colors.primary}]`}
+                      />
+                      <span className="text-[13px]" style={{ color: colors.textPrimary }}>{seg}</span>
+                    </div>
+                    <span className="text-[12px]" style={{ color: colors.textDisabled }}>
+                      ({segmentCounts[seg]})
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </>
+          </FilterSection>
 
           {/* Room Type */}
-          <div className="mb-6">
-            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
-              Room Type
-            </p>
-            <button
-              onClick={() =>
-                activeRoomTypes.length === ROOM_TYPES.length
-                  ? setActiveRoomTypes([])
-                  : setActiveRoomTypes(ROOM_TYPES)
-              }
-              className="text-[12px] mb-2 hover:underline"
-              style={{ color: colors.primary }}
-            >
-              {activeRoomTypes.length === ROOM_TYPES.length ? "Deselect All" : "Select All"}
-            </button>
-            <div className="flex flex-col gap-1.5">
-              {ROOM_TYPES.map((rt) => (
-                <label key={rt} className="flex items-center justify-between cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={activeRoomTypes.includes(rt)}
-                      onChange={() => toggleRoomType(rt)}
-                      className={`w-4 h-4 rounded accent-[${colors.primary}]`}
-                    />
-                    <span className="text-[13px]" style={{ color: colors.textPrimary }}>{rt}</span>
-                  </div>
-                  <span className="text-[12px]" style={{ color: colors.textDisabled }}>
-                    ({roomTypeCounts[rt]})
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <FilterSection
+            label="Room Type"
+            sectionKey="roomType"
+            collapsed={collapsedSections.has("roomType")}
+            onToggle={toggleSection}
+          >
+            <>
+              <button
+                onClick={() =>
+                  activeRoomTypes.length === ROOM_TYPES.length
+                    ? setActiveRoomTypes([])
+                    : setActiveRoomTypes(ROOM_TYPES)
+                }
+                className="text-[12px] mb-2 hover:underline"
+                style={{ color: colors.primary }}
+              >
+                {activeRoomTypes.length === ROOM_TYPES.length ? "Deselect All" : "Select All"}
+              </button>
+              <div className="flex flex-col gap-1.5">
+                {ROOM_TYPES.map((rt) => (
+                  <label key={rt} className="flex items-center justify-between cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={activeRoomTypes.includes(rt)}
+                        onChange={() => toggleRoomType(rt)}
+                        className={`w-4 h-4 rounded accent-[${colors.primary}]`}
+                      />
+                      <span className="text-[13px]" style={{ color: colors.textPrimary }}>{rt}</span>
+                    </div>
+                    <span className="text-[12px]" style={{ color: colors.textDisabled }}>
+                      ({roomTypeCounts[rt]})
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </>
+          </FilterSection>
 
           {/* Status */}
-          <div>
-            <p className="text-base font-medium mb-1.5" style={{ color: colors.textSecondary }}>
-              Status
-            </p>
+          <FilterSection
+            label="Status"
+            sectionKey="status"
+            collapsed={collapsedSections.has("status")}
+            onToggle={toggleSection}
+          >
             <div className="flex flex-col gap-1.5">
               {(["all", "active", "inactive"] as const).map((val) => (
                 <label key={val} className="flex items-center gap-2 cursor-pointer">
@@ -388,64 +540,40 @@ export default function RestrictionsContent() {
                 </label>
               ))}
             </div>
-          </div>
+          </FilterSection>
         </div>
 
         {/* ── Cards column ── */}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
+          {/* Sort control */}
+          <div className="flex items-center justify-end gap-2 mb-4">
+            <span className="text-[12px]" style={{ color: colors.textSecondary }}>Sort by:</span>
+            <Select
+              value={{ group: "Hotel Group", granularity: "Granularity", alpha: "A–Z" }[sortBy]}
+              options={["Hotel Group", "Granularity", "A–Z"]}
+              onChange={(label) => {
+                const map: Record<string, SortBy> = { "Hotel Group": "group", "Granularity": "granularity", "A–Z": "alpha" };
+                setSortBy(map[label]);
+              }}
+              width={148}
+            />
+          </div>
+
           {!hasAnyContent ? (
-            <div
-              className="flex flex-col items-center justify-center py-20"
-              style={{ color: colors.textDisabled }}
-            >
+            <div className="flex flex-col items-center justify-center py-20" style={{ color: colors.textDisabled }}>
               <p className="text-[15px] font-bold mb-1">No guidelines match current filters</p>
-              <p className="text-[13px]">
-                Try adjusting the segment, room type, or status filters.
-              </p>
+              <p className="text-[13px]">Try adjusting the segment, room type, or status filters.</p>
             </div>
           ) : (
             <>
-              {/* Property section — always shown, not controlled by segment filter */}
-              {propertyRules.length > 0 && (
-                <div className="mb-8">
-                  <SectionDivider label="Property" />
-                  <div className="flex flex-col gap-3">
-                    {propertyRules.map((rule) => (
-                      <GuidelineCard
-                        key={rule.id}
-                        rule={rule}
-                        active={ruleStates[rule.id]}
-                        onToggle={() => toggleRule(rule.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Segment sections */}
-              {SEGMENTS.map((seg) => {
-                const rules = groupedBySegment[seg];
-                if (!rules || rules.length === 0) return null;
-                return (
-                  <div key={seg} className="mb-8">
-                    <SectionDivider label={seg} />
-                    <div className="flex flex-col gap-3">
-                      {rules.map((rule) => (
-                        <GuidelineCard
-                          key={rule.id}
-                          rule={rule}
-                          active={ruleStates[rule.id]}
-                          onToggle={() => toggleRule(rule.id)}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+              {sortBy === "group" && renderByGroup()}
+              {sortBy === "granularity" && renderByGranularity()}
+              {sortBy === "alpha" && renderAlpha()}
             </>
           )}
         </div>
       </div>
+
       {toast && (
         <div
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-lg shadow-xl text-[14px] font-semibold flex items-center gap-2"
@@ -455,6 +583,67 @@ export default function RestrictionsContent() {
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
           </svg>
           {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Hotels chip + popover ────────────────────────────────────────────────────
+
+function HotelsChip({ group }: { group: string }) {
+  const hotels = MOCK_PROPERTIES_BY_GROUP[group] ?? [];
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        onClick={() => setOpen((p) => !p)}
+        className="flex items-center gap-0.5 text-[12px] hover:underline"
+        style={{ color: colors.primary }}
+      >
+        {hotels.length} {hotels.length === 1 ? "hotel" : "hotels"}
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }}
+        >
+          <path d="M7 10l5 5 5-5H7z" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          className="absolute left-0 z-50 rounded shadow-lg py-2"
+          style={{
+            top: "calc(100% + 4px)",
+            backgroundColor: colors.white,
+            border: `1px solid ${colors.border}`,
+            minWidth: "220px",
+          }}
+        >
+          <p
+            className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-widest"
+            style={{ color: colors.textDisabled }}
+          >
+            {group}
+          </p>
+          {hotels.map((h) => (
+            <div key={h.name} className="px-3 py-1 text-[13px]" style={{ color: colors.textPrimary }}>
+              {h.name}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -482,27 +671,31 @@ function GuidelineCard({
       }}
     >
       <div className="flex items-start justify-between px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0 mr-4">
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
-            style={
-              isProperty
-                ? { backgroundColor: colors.chipProperty, color: colors.primary }
-                : { backgroundColor: colors.chipSegment, color: colors.textPrimary }
-            }
-          >
-            {rule.segment}
-          </span>
-          <span className="text-[15px] font-bold truncate" style={{ color: colors.textPrimary }}>
-            {rule.name}
-          </span>
+        <div className="flex flex-col min-w-0 flex-1 mr-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
+              style={
+                isProperty
+                  ? { backgroundColor: colors.chipProperty, color: colors.primary }
+                  : { backgroundColor: colors.chipSegment, color: colors.textPrimary }
+              }
+            >
+              {rule.segment}
+            </span>
+            <span className="text-[15px] font-bold truncate" style={{ color: colors.textPrimary }}>
+              {rule.name}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[12px]" style={{ color: colors.textDisabled }}>{rule.hotelGroup}</span>
+            <span className="text-[12px]" style={{ color: colors.border }}>·</span>
+            <HotelsChip group={rule.hotelGroup} />
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
-              title="Copy"
-            >
+            <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100" title="Copy">
               <CopyIcon />
             </button>
             <Link
@@ -512,10 +705,7 @@ function GuidelineCard({
             >
               <EditIcon />
             </Link>
-            <button
-              className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100"
-              title="Delete"
-            >
+            <button className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100" title="Delete">
               <DeleteIcon />
             </button>
           </div>

@@ -44,7 +44,7 @@ const PRICING_STRATEGY_MENU: MegaMenuColumn[] = [
     header: "Multi-Property",
     items: [
       { label: "Rate Guidelines" },
-      { label: "Restriction Guidelines", href: "/restrictions-mlp" },
+      { label: "Restriction Guidelines", href: "/restrictions" },
       { label: "Hotel Groups" },
       { label: "Sub Rates" },
     ],
@@ -301,7 +301,7 @@ export default function AppHeader({
                   Old Versions
                 </p>
                 <Link
-                  href="/restrictions"
+                  href="/restrictions-old"
                   onClick={() => setSettingsOpen(false)}
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
@@ -309,7 +309,7 @@ export default function AppHeader({
                   List View (Single Group)
                 </Link>
                 <Link
-                  href="/restrictions/new"
+                  href="/restrictions-old/new"
                   onClick={() => setSettingsOpen(false)}
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}
@@ -332,7 +332,7 @@ export default function AppHeader({
                   List/Table Toggle View
                 </Link>
                 <Link
-                  href="/restrictions-mlp/new-wizard"
+                  href="/restrictions/new-wizard"
                   onClick={() => setSettingsOpen(false)}
                   className="flex items-center px-3 py-1.5 text-[13px] hover:bg-[#f5f9ff]"
                   style={{ color: colors.primary }}

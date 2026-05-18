@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useRestrictions } from "@/lib/restrictions-context";
-import NewRestrictionForm from "@/app/restrictions-mlp/new/NewRestrictionForm";
+import NewRestrictionForm from "@/app/restrictions/new/NewRestrictionForm";
 
 function EditFormWrapper() {
   const { id } = useParams<{ id: string }>();
@@ -12,7 +12,7 @@ function EditFormWrapper() {
   return <NewRestrictionForm mode="edit" seed={rule} />;
 }
 
-export default function EditRestrictionMlpPage() {
+export default function EditRestrictionPage() {
   return (
     <Suspense>
       <EditFormWrapper />

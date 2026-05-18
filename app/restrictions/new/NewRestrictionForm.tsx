@@ -13,6 +13,7 @@ import {
   STRATEGY_FOR_OPTIONS,
   YIELD_SEGMENTS,
   FORM_ROOM_TYPES,
+  MOCK_SUB_RATES,
 } from "@/lib/data";
 import { useRestrictions } from "@/lib/restrictions-context";
 
@@ -204,6 +205,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
 
   const strategySecondaryOptions =
     strategyFor === "Yield Segments" ? YIELD_SEGMENTS
+    : strategyFor === "Sub Rates" ? ["Advance Purchase 7", "Advance Purchase 14", "Non-Refundable", "Breakfast Package", "Weekend Escape"]
     : strategyFor === "Room Type" ? FORM_ROOM_TYPES
     : null;
 
@@ -219,6 +221,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
     let roomType: string;
     if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
     else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
+    else if (strategyFor === "Sub Rates") { segment = strategyForValue || "Sub Rates"; roomType = "All Room Types"; }
     else { segment = seed?.segment ?? "Property"; roomType = strategyForValue || "All Room Types"; }
 
     const restrictions: GuidelineRule["restrictions"] = [];
@@ -411,6 +414,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
             let roomType: string;
             if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
             else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
+            else if (strategyFor === "Sub Rates") { segment = strategyForValue || "Sub Rates"; roomType = "All Room Types"; }
             else { segment = "Property"; roomType = strategyForValue || "All Room Types"; }
             const restrictions: GuidelineRule["restrictions"] = [];
             for (const r of RESTRICTIONS) {
