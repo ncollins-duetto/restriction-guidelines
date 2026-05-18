@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
@@ -48,6 +48,61 @@ function InfoIcon() {
   );
 }
 
+// ─── MultiSelect ─────────────────────────────────────────────────────────────
+
+function MultiSelect({ options, selected, onChange, placeholder, allLabel }: {
+  options: string[]; selected: string[]; onChange: (v: string[]) => void;
+  placeholder: string; allLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const allSelected = selected.length === options.length;
+  const label = selected.length === 0 ? placeholder
+    : allSelected ? (allLabel ?? "All")
+    : selected.length === 1 ? selected[0]
+    : `${selected.length} selected`;
+
+  return (
+    <div ref={ref} className="relative" style={{ width: 220 }}>
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="flex items-center justify-between h-9 px-3 rounded border w-full text-[13px] text-left"
+        style={{ borderColor: colors.border, backgroundColor: colors.white, color: selected.length ? colors.textPrimary : colors.textDisabled }}>
+        <span className="truncate">{label}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="ml-1 shrink-0"><path d="M7 10l5 5 5-5H7z"/></svg>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-10 z-50 rounded shadow-lg w-full max-h-52 overflow-y-auto"
+          style={{ backgroundColor: colors.white, border: `1px solid ${colors.border}` }}>
+          <div className="px-3 py-2 border-b" style={{ borderColor: colors.border }}>
+            <button type="button" onClick={() => onChange(allSelected ? [] : [...options])}
+              className="text-[12px] hover:underline" style={{ color: colors.primary }}>
+              {allSelected ? "Deselect all" : "Select all"}
+            </button>
+          </div>
+          {options.map(opt => (
+            <label key={opt} className="flex items-center gap-2.5 px-3 py-1.5 cursor-pointer hover:bg-gray-50 text-[13px]"
+              style={{ color: colors.textPrimary }}>
+              <input type="checkbox" checked={selected.includes(opt)}
+                onChange={() => onChange(selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt])}
+                className="w-4 h-4 shrink-0" style={{ accentColor: colors.primary }} />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function buildStayDateSummary(
@@ -83,10 +138,10 @@ function seedStrategyFor(rule: GuidelineRule): string {
   return "Room Type";
 }
 
-function seedStrategyForValue(rule: GuidelineRule): string {
-  if (rule.segment !== "Property" && YIELD_SEGMENTS.includes(rule.segment)) return rule.segment;
-  if (rule.roomType && rule.roomType !== "All Room Types") return rule.roomType;
-  return "";
+function seedStrategyForValues(rule: GuidelineRule): string[] {
+  if (rule.segment !== "Property" && YIELD_SEGMENTS.includes(rule.segment)) return [rule.segment];
+  if (rule.roomType && rule.roomType !== "All Room Types") return [rule.roomType];
+  return [];
 }
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
@@ -98,7 +153,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
 
   const initialGroup = seed?.hotelGroup ?? searchParams.get("group") ?? "";
   const initialStrategyFor = seed ? seedStrategyFor(seed) : "Property";
-  const initialStrategyForValue = seed ? seedStrategyForValue(seed) : "";
+  const initialStrategyForValues = seed ? seedStrategyForValues(seed) : [];
   const initialCheckedRestrictions = Object.fromEntries(
     RESTRICTIONS.map((r) => [r.key, !r.hasValue && (seed?.restrictions.some((x) => x.type === r.key) ?? false)])
   ) as Record<RestrictionKey, boolean>;
@@ -109,7 +164,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
   const [name, setName] = useState(seed?.name ?? "");
   const [hotelGroup, setHotelGroup] = useState(initialGroup);
   const [strategyFor, setStrategyFor] = useState(initialStrategyFor);
-  const [strategyForValue, setStrategyForValue] = useState(initialStrategyForValue);
+  const [strategyForValues, setStrategyForValues] = useState<string[]>(initialStrategyForValues);
   const [restrictionValues, setRestrictionValues] = useState<Record<RestrictionKey, string>>(initialRestrictionValues);
   const [checkedRestrictions, setCheckedRestrictions] = useState<Record<RestrictionKey, boolean>>(initialCheckedRestrictions);
 
@@ -220,9 +275,9 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
     let segment: string;
     let roomType: string;
     if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
-    else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
-    else if (strategyFor === "Sub Rates") { segment = strategyForValue || "Sub Rates"; roomType = "All Room Types"; }
-    else { segment = seed?.segment ?? "Property"; roomType = strategyForValue || "All Room Types"; }
+    else if (strategyFor === "Yield Segments") { segment = strategyForValues[0] || "OTA - Transient"; roomType = "All Room Types"; }
+    else if (strategyFor === "Sub Rates") { segment = strategyForValues[0] || "Sub Rates"; roomType = "All Room Types"; }
+    else { segment = seed?.segment ?? "Property"; roomType = strategyForValues[0] || "All Room Types"; }
 
     const restrictions: GuidelineRule["restrictions"] = [];
     for (const r of RESTRICTIONS) {
@@ -364,16 +419,16 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
               <SelectInput
                 value={strategyFor}
                 options={STRATEGY_FOR_OPTIONS}
-                onChange={(v) => { setStrategyFor(v); setStrategyForValue(""); }}
+                onChange={(v) => { setStrategyFor(v); setStrategyForValues([]); }}
                 width={200}
               />
               {strategySecondaryOptions && (
-                <SelectInput
-                  value={strategyForValue}
+                <MultiSelect
                   options={strategySecondaryOptions}
-                  onChange={setStrategyForValue}
+                  selected={strategyForValues}
+                  onChange={setStrategyForValues}
                   placeholder="Select..."
-                  width={220}
+                  allLabel={strategyFor === "Yield Segments" ? "All segments" : strategyFor === "Sub Rates" ? "All sub rates" : "All room types"}
                 />
               )}
             </div>
@@ -413,9 +468,9 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
             let segment: string;
             let roomType: string;
             if (strategyFor === "Property") { segment = "Property"; roomType = "All Room Types"; }
-            else if (strategyFor === "Yield Segments") { segment = strategyForValue || "OTA - Transient"; roomType = "All Room Types"; }
-            else if (strategyFor === "Sub Rates") { segment = strategyForValue || "Sub Rates"; roomType = "All Room Types"; }
-            else { segment = "Property"; roomType = strategyForValue || "All Room Types"; }
+            else if (strategyFor === "Yield Segments") { segment = strategyForValues[0] || "OTA - Transient"; roomType = "All Room Types"; }
+            else if (strategyFor === "Sub Rates") { segment = strategyForValues[0] || "Sub Rates"; roomType = "All Room Types"; }
+            else { segment = "Property"; roomType = strategyForValues[0] || "All Room Types"; }
             const restrictions: GuidelineRule["restrictions"] = [];
             for (const r of RESTRICTIONS) {
               if (r.hasValue && restrictionValues[r.key]) restrictions.push({ type: r.key, value: parseInt(restrictionValues[r.key]) });
