@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { colors } from "@/lib/tokens";
 import type { RestrictionType, GuidelineRule } from "@/lib/types";
-import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES, MOCK_PROPERTIES_BY_GROUP } from "@/lib/data";
+import { HOTEL_GROUPS, SEGMENTS, ROOM_TYPES, MOCK_SUB_RATES, MOCK_PROPERTIES_BY_GROUP } from "@/lib/data";
 import { useRestrictions } from "@/lib/restrictions-context";
 import Select from "@/components/Select";
 
@@ -182,6 +182,8 @@ function FilterSection({
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
+const ALL_SEGMENTS_SUBRATES = [...SEGMENTS, ...MOCK_SUB_RATES];
+
 type SortBy = "group" | "granularity" | "alpha";
 
 export default function RestrictionsContent() {
@@ -190,7 +192,7 @@ export default function RestrictionsContent() {
   const [sortBy, setSortBy] = useState<SortBy>("group");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [propertySelected, setPropertySelected] = useState(true);
-  const [activeSegments, setActiveSegments] = useState<string[]>(SEGMENTS);
+  const [activeSegmentsSubrates, setActiveSegmentsSubrates] = useState<string[]>(ALL_SEGMENTS_SUBRATES);
   const [activeRoomTypes, setActiveRoomTypes] = useState<string[]>(ROOM_TYPES);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
@@ -219,9 +221,9 @@ export default function RestrictionsContent() {
     });
   }
 
-  function toggleSegment(seg: string) {
-    setActiveSegments((prev) =>
-      prev.includes(seg) ? prev.filter((s) => s !== seg) : [...prev, seg]
+  function toggleSegmentSubrate(item: string) {
+    setActiveSegmentsSubrates((prev) =>
+      prev.includes(item) ? prev.filter((s) => s !== item) : [...prev, item]
     );
   }
 
@@ -241,26 +243,41 @@ export default function RestrictionsContent() {
     return true;
   }
 
+  function inferGranularity(rule: GuidelineRule) {
+    return rule.granularity ?? (rule.segment === "Property" ? "property" : "segment");
+  }
+
   const propertyRules = visibleRules.filter(
-    (r) => r.segment === "Property" && propertySelected && statusOk(r)
+    (r) => inferGranularity(r) === "property" && propertySelected && statusOk(r)
   );
 
-  const filteredSegmentRules = visibleRules.filter(
-    (r) =>
-      r.segment !== "Property" &&
-      activeSegments.includes(r.segment) &&
-      activeRoomTypes.includes(r.roomType) &&
-      statusOk(r)
-  );
+  const filteredSegmentRules = visibleRules.filter((r) => {
+    const g = inferGranularity(r);
+    if (g === "property") return false;
+    if (g === "roomtype") {
+      const values = r.roomTypes ?? [r.roomType];
+      return values.some((rt) => activeRoomTypes.includes(rt)) && statusOk(r);
+    }
+    const values = r.segments ?? [r.segment];
+    return values.some((s) => activeSegmentsSubrates.includes(s)) && statusOk(r);
+  });
 
   // Filter counts across all selected groups
-  const segmentOnlyRules = visibleRules.filter((r) => r.segment !== "Property");
-  const segmentCounts = SEGMENTS.reduce<Record<string, number>>((acc, seg) => {
-    acc[seg] = segmentOnlyRules.filter((r) => r.segment === seg).length;
+  const segmentSubrateCounts = ALL_SEGMENTS_SUBRATES.reduce<Record<string, number>>((acc, item) => {
+    acc[item] = visibleRules.filter((r) => {
+      const g = inferGranularity(r);
+      if (g !== "segment" && g !== "subrate") return false;
+      const values = r.segments ?? [r.segment];
+      return values.includes(item);
+    }).length;
     return acc;
   }, {});
   const roomTypeCounts = ROOM_TYPES.reduce<Record<string, number>>((acc, rt) => {
-    acc[rt] = segmentOnlyRules.filter((r) => r.roomType === rt).length;
+    acc[rt] = visibleRules.filter((r) => {
+      if (inferGranularity(r) !== "roomtype") return false;
+      const values = r.roomTypes ?? [r.roomType];
+      return values.includes(rt);
+    }).length;
     return acc;
   }, {});
 
@@ -294,10 +311,10 @@ export default function RestrictionsContent() {
   }
 
   function renderByGranularity() {
-    const groupedBySegment = SEGMENTS.reduce<Record<string, GuidelineRule[]>>((acc, seg) => {
-      acc[seg] = filteredSegmentRules.filter((r) => r.segment === seg);
-      return acc;
-    }, {});
+    const propertyRulesFiltered = filteredSegmentRules.filter((r) => inferGranularity(r) === "property");
+    const segmentRules = filteredSegmentRules.filter((r) => inferGranularity(r) === "segment");
+    const subrateRules = filteredSegmentRules.filter((r) => inferGranularity(r) === "subrate");
+    const roomTypeRules = filteredSegmentRules.filter((r) => inferGranularity(r) === "roomtype");
 
     return (
       <>
@@ -311,20 +328,46 @@ export default function RestrictionsContent() {
             </div>
           </div>
         )}
-        {SEGMENTS.map((seg) => {
-          const segRules = groupedBySegment[seg];
-          if (!segRules || segRules.length === 0) return null;
-          return (
-            <div key={seg} className="mb-8">
-              <SectionDivider label={seg} />
-              <div className="flex flex-col gap-3">
-                {segRules.map((rule) => (
-                  <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
-                ))}
-              </div>
+        {segmentRules.length > 0 && (
+          <div className="mb-8">
+            <SectionDivider label="Segments" />
+            <div className="flex flex-col gap-3">
+              {segmentRules.map((rule) => (
+                <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+              ))}
             </div>
-          );
-        })}
+          </div>
+        )}
+        {subrateRules.length > 0 && (
+          <div className="mb-8">
+            <SectionDivider label="Sub Rates" />
+            <div className="flex flex-col gap-3">
+              {subrateRules.map((rule) => (
+                <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {roomTypeRules.length > 0 && (
+          <div className="mb-8">
+            <SectionDivider label="Room Type" />
+            <div className="flex flex-col gap-3">
+              {roomTypeRules.map((rule) => (
+                <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {propertyRulesFiltered.length > 0 && propertyRules.length === 0 && (
+          <div className="mb-8">
+            <SectionDivider label="Property" />
+            <div className="flex flex-col gap-3">
+              {propertyRulesFiltered.map((rule) => (
+                <GuidelineCard key={rule.id} rule={rule} active={ruleStates[rule.id]} onToggle={() => toggleRule(rule.id)} />
+              ))}
+            </div>
+          </div>
+        )}
       </>
     );
   }
@@ -419,100 +462,137 @@ export default function RestrictionsContent() {
             </>
           </FilterSection>
 
-          {/* Property */}
+          {/* Granularity */}
           <FilterSection
-            label="Property"
-            sectionKey="property"
-            collapsed={collapsedSections.has("property")}
-            onToggle={toggleSection}
-          >
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={propertySelected}
-                onChange={() => setPropertySelected((prev) => !prev)}
-                className={`w-4 h-4 rounded accent-[${colors.primary}]`}
-              />
-              <span className="text-[13px]" style={{ color: colors.textPrimary }}>Property</span>
-            </label>
-          </FilterSection>
-
-          {/* Segments */}
-          <FilterSection
-            label="Segments"
-            sectionKey="segments"
-            collapsed={collapsedSections.has("segments")}
+            label="Granularity"
+            sectionKey="granularity"
+            collapsed={collapsedSections.has("granularity")}
             onToggle={toggleSection}
           >
             <>
-              <button
-                onClick={() =>
-                  activeSegments.length === SEGMENTS.length
-                    ? setActiveSegments([])
-                    : setActiveSegments(SEGMENTS)
-                }
-                className="text-[12px] mb-2 hover:underline"
-                style={{ color: colors.primary }}
-              >
-                {activeSegments.length === SEGMENTS.length ? "Deselect All" : "Select All"}
-              </button>
-              <div className="flex flex-col gap-1.5">
-                {SEGMENTS.map((seg) => (
-                  <label key={seg} className="flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={activeSegments.includes(seg)}
-                        onChange={() => toggleSegment(seg)}
-                        className={`w-4 h-4 rounded accent-[${colors.primary}]`}
-                      />
-                      <span className="text-[13px]" style={{ color: colors.textPrimary }}>{seg}</span>
-                    </div>
-                    <span className="text-[12px]" style={{ color: colors.textDisabled }}>
-                      ({segmentCounts[seg]})
-                    </span>
-                  </label>
-                ))}
+              {/* Property sub-section */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: colors.textDisabled }}>Property</p>
+                  <button
+                    onClick={() => setPropertySelected((prev) => !prev)}
+                    className="text-[11px] hover:underline"
+                    style={{ color: colors.primary }}
+                  >
+                    {propertySelected ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={propertySelected}
+                    onChange={() => setPropertySelected((prev) => !prev)}
+                    className={`w-4 h-4 rounded accent-[${colors.primary}]`}
+                  />
+                  <span className="text-[13px]" style={{ color: colors.textPrimary }}>Property</span>
+                </label>
               </div>
-            </>
-          </FilterSection>
 
-          {/* Room Type */}
-          <FilterSection
-            label="Room Type"
-            sectionKey="roomType"
-            collapsed={collapsedSections.has("roomType")}
-            onToggle={toggleSection}
-          >
-            <>
-              <button
-                onClick={() =>
-                  activeRoomTypes.length === ROOM_TYPES.length
-                    ? setActiveRoomTypes([])
-                    : setActiveRoomTypes(ROOM_TYPES)
-                }
-                className="text-[12px] mb-2 hover:underline"
-                style={{ color: colors.primary }}
-              >
-                {activeRoomTypes.length === ROOM_TYPES.length ? "Deselect All" : "Select All"}
-              </button>
-              <div className="flex flex-col gap-1.5">
-                {ROOM_TYPES.map((rt) => (
-                  <label key={rt} className="flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={activeRoomTypes.includes(rt)}
-                        onChange={() => toggleRoomType(rt)}
-                        className={`w-4 h-4 rounded accent-[${colors.primary}]`}
-                      />
-                      <span className="text-[13px]" style={{ color: colors.textPrimary }}>{rt}</span>
-                    </div>
-                    <span className="text-[12px]" style={{ color: colors.textDisabled }}>
-                      ({roomTypeCounts[rt]})
-                    </span>
-                  </label>
-                ))}
+              {/* Segments sub-section */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: colors.textDisabled }}>Segments</p>
+                  <button
+                    onClick={() =>
+                      SEGMENTS.every((s) => activeSegmentsSubrates.includes(s))
+                        ? setActiveSegmentsSubrates((prev) => prev.filter((s) => !SEGMENTS.includes(s)))
+                        : setActiveSegmentsSubrates((prev) => [...new Set([...prev, ...SEGMENTS])])
+                    }
+                    className="text-[11px] hover:underline"
+                    style={{ color: colors.primary }}
+                  >
+                    {SEGMENTS.every((s) => activeSegmentsSubrates.includes(s)) ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {SEGMENTS.map((seg) => (
+                    <label key={seg} className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={activeSegmentsSubrates.includes(seg)}
+                          onChange={() => toggleSegmentSubrate(seg)}
+                          className={`w-4 h-4 rounded accent-[${colors.primary}]`}
+                        />
+                        <span className="text-[13px]" style={{ color: colors.textPrimary }}>{seg}</span>
+                      </div>
+                      <span className="text-[12px]" style={{ color: colors.textDisabled }}>({segmentSubrateCounts[seg]})</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sub Rates sub-section */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: colors.textDisabled }}>Sub Rates</p>
+                  <button
+                    onClick={() =>
+                      MOCK_SUB_RATES.every((s) => activeSegmentsSubrates.includes(s))
+                        ? setActiveSegmentsSubrates((prev) => prev.filter((s) => !MOCK_SUB_RATES.includes(s)))
+                        : setActiveSegmentsSubrates((prev) => [...new Set([...prev, ...MOCK_SUB_RATES])])
+                    }
+                    className="text-[11px] hover:underline"
+                    style={{ color: colors.primary }}
+                  >
+                    {MOCK_SUB_RATES.every((s) => activeSegmentsSubrates.includes(s)) ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {MOCK_SUB_RATES.map((sr) => (
+                    <label key={sr} className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={activeSegmentsSubrates.includes(sr)}
+                          onChange={() => toggleSegmentSubrate(sr)}
+                          className={`w-4 h-4 rounded accent-[${colors.primary}]`}
+                        />
+                        <span className="text-[13px]" style={{ color: colors.textPrimary }}>{sr}</span>
+                      </div>
+                      <span className="text-[12px]" style={{ color: colors.textDisabled }}>({segmentSubrateCounts[sr]})</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Room Type sub-section */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: colors.textDisabled }}>Room Type</p>
+                  <button
+                    onClick={() =>
+                      activeRoomTypes.length === ROOM_TYPES.length
+                        ? setActiveRoomTypes([])
+                        : setActiveRoomTypes(ROOM_TYPES)
+                    }
+                    className="text-[11px] hover:underline"
+                    style={{ color: colors.primary }}
+                  >
+                    {activeRoomTypes.length === ROOM_TYPES.length ? "Deselect All" : "Select All"}
+                  </button>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {ROOM_TYPES.map((rt) => (
+                    <label key={rt} className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={activeRoomTypes.includes(rt)}
+                          onChange={() => toggleRoomType(rt)}
+                          className={`w-4 h-4 rounded accent-[${colors.primary}]`}
+                        />
+                        <span className="text-[13px]" style={{ color: colors.textPrimary }}>{rt}</span>
+                      </div>
+                      <span className="text-[12px]" style={{ color: colors.textDisabled }}>({roomTypeCounts[rt]})</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </>
           </FilterSection>
@@ -650,6 +730,19 @@ function HotelsChip({ group }: { group: string }) {
   );
 }
 
+const GRANULARITY_CHIP: Record<string, { label: string; bg: string; color: string }> = {
+  property: { label: "Property", bg: colors.chipProperty, color: colors.primary },
+  segment:  { label: "Segment",  bg: colors.chipSegment,  color: colors.textPrimary },
+  subrate:  { label: "Sub Rate", bg: colors.chipSegment,  color: colors.textPrimary },
+  roomtype: { label: "Room Type",bg: colors.chipSegment,  color: colors.textPrimary },
+};
+
+const GRANULARITY_DETAIL_LABEL: Record<string, string> = {
+  segment:  "Segment",
+  subrate:  "Sub Rate",
+  roomtype: "Room Type",
+};
+
 // ─── Guideline Card ───────────────────────────────────────────────────────────
 
 function GuidelineCard({
@@ -661,7 +754,13 @@ function GuidelineCard({
   active: boolean;
   onToggle: () => void;
 }) {
-  const isProperty = rule.segment === "Property";
+  const granularity = rule.granularity ?? (rule.segment === "Property" ? "property" : "segment");
+  const chip = GRANULARITY_CHIP[granularity] ?? GRANULARITY_CHIP.segment;
+  const detailLabel = GRANULARITY_DETAIL_LABEL[granularity];
+  const detailValue = granularity === "roomtype"
+    ? (rule.roomTypes ?? [rule.roomType]).join(", ")
+    : (rule.segments ?? [rule.segment]).join(", ");
+
   return (
     <div
       className="rounded group"
@@ -670,18 +769,14 @@ function GuidelineCard({
         boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
       }}
     >
-      <div className="flex items-start justify-between px-4 pt-4 pb-2">
+      <div className="flex items-start justify-between px-4 pt-4 pb-3">
         <div className="flex flex-col min-w-0 flex-1 mr-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span
               className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold shrink-0"
-              style={
-                isProperty
-                  ? { backgroundColor: colors.chipProperty, color: colors.primary }
-                  : { backgroundColor: colors.chipSegment, color: colors.textPrimary }
-              }
+              style={{ backgroundColor: chip.bg, color: chip.color }}
             >
-              {rule.segment}
+              {chip.label}
             </span>
             <span className="text-[15px] font-bold truncate" style={{ color: colors.textPrimary }}>
               {rule.name}
@@ -713,17 +808,13 @@ function GuidelineCard({
         </div>
       </div>
 
-      <div className="px-4 pb-3">
-        <p className="text-[13px]" style={{ color: colors.textSecondary }}>
-          {rule.roomType} — {restrictionSummary(rule.restrictions)}
-        </p>
-      </div>
-
       <div className="border-t mx-4" style={{ borderColor: colors.border }} />
 
       <div className="px-4 py-3 flex flex-col gap-1.5">
+        {detailLabel && <DetailRow label={detailLabel} value={detailValue} />}
         <DetailRow label="Stay Date" value={rule.stayDate} />
         <DetailRow label="Criteria" value={rule.criteria} />
+        <DetailRow label="Restrictions" value={restrictionSummary(rule.restrictions)} />
         <DetailRow label="Created" value={rule.created} />
       </div>
     </div>
