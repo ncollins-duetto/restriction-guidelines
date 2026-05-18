@@ -14,6 +14,7 @@ import {
   YIELD_SEGMENTS,
   FORM_ROOM_TYPES,
   MOCK_SUB_RATES,
+  MOCK_PROPERTIES_BY_GROUP,
 } from "@/lib/data";
 import { useRestrictions } from "@/lib/restrictions-context";
 
@@ -45,6 +46,51 @@ function InfoIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill={colors.primary}>
       <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
     </svg>
+  );
+}
+
+// ─── HotelList ───────────────────────────────────────────────────────────────
+
+function HotelList({ group }: { group: string }) {
+  const [open, setOpen] = useState(false);
+  const hotels = MOCK_PROPERTIES_BY_GROUP[group] ?? [];
+
+  if (!group || hotels.length === 0) return null;
+
+  return (
+    <div className="mt-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen(p => !p)}
+        className="flex items-center gap-0.5 text-[12px] hover:underline"
+        style={{ color: colors.primary }}
+      >
+        {open ? "Hide hotels" : `View ${hotels.length} hotel${hotels.length === 1 ? "" : "s"}`}
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="currentColor"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 150ms" }}
+        >
+          <path d="M7 10l5 5 5-5H7z" />
+        </svg>
+      </button>
+      {open && (
+        <div className="mt-2 rounded overflow-hidden" style={{ border: `1px solid ${colors.border}`, maxWidth: 400 }}>
+          {hotels.map((h, i) => (
+            <div
+              key={h.name}
+              className="px-3 py-2 text-[13px]"
+              style={{
+                color: colors.textPrimary,
+                borderBottom: i < hotels.length - 1 ? `1px solid ${colors.border}` : undefined,
+                backgroundColor: colors.white,
+              }}
+            >
+              {h.name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -349,6 +395,7 @@ export default function NewRestrictionForm({ mode = "create", seed }: { mode?: "
             </FormField>
             <FormField label="Enterprise Hotel Group" required>
               <SelectInput value={hotelGroup} options={HOTEL_GROUPS} onChange={setHotelGroup} placeholder="Select..." width="100%" />
+              <HotelList group={hotelGroup} />
             </FormField>
           </div>
 
